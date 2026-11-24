@@ -1255,29 +1255,72 @@ function vCalorieBot() {
   h+='</div><form class="bot-entry" id="botForm"><input id="botInput" placeholder="مثلاً: 2 بيضة و100 جم عيش بلدي" autocomplete="off"><button class="btn" type="submit">احسب</button></form><p class="muted xs">الحساب يعتمد على قاعدة الأطعمة في التطبيق. لو الاسم أو الكمية مش واضحة، البوت هينبهك؛ النتائج مش بديل لبيانات غذائية دقيقة.</p>';
   return h;
 }
-function botCalculate(text) {
-  var foods=allFoods(), clean=text.toLowerCase().replace(/[،,؛;]/g,' ').trim(), matches=[], total={g:0,k:0,p:0,c:0,f:0};
-  var rx=/([0-9٠-٩]+(?:[.,٫][0-9٠-٩]+)?)\s*(?:جم|جرام|غرام|غ|g|كجم|كيلو)?/gi, arr=[], m;
-  while((m=rx.exec(clean))!==null){var raw=m[1].replace(/[٠-٩]/g,function(x){return '٠١٢٣٤٥٦٧٨٩'.indexOf(x);}).replace(/[٫,]/g,'.'); var q=Number(raw); if(q>0&&q<10000) arr.push({at:m.index,end:rx.lastIndex,g:q});}
-  if(arr.length){
-    arr.forEach(function(q,i){var start=q.end, end=i+1<arr.length?arr[i+1].at:clean.length, phrase=clean.slice(start,end).replace(/\b(?:جم|جرام|غرام|غ|g|كجم|كيلو)\b/gi,' ').trim();
-      var f=foods.filter(function(x){return phrase.indexOf(x.n.toLowerCase())>=0;}).sort(function(a,b){return b.n.length-a.n.length;})[0];
-      if(!f){var words=phrase.split(/\s+/); f=foods.filter(function(x){return words.some(function(w){return w.length>2&&x.n.toLowerCase().indexOf(w)>=0;});}).sort(function(a,b){return b.n.length-a.n.length;})[0];}
-      if(f){var g=q.g;if(/كجم|كيلو/i.test(clean.slice(q.at,q.end)))g*=1000;var z=g/100;matches.push({n:f.n,g:g,k:f.k*z,p:f.p*z,c:f.c*z,f:f.f*z});}
-    });
-  }
-  if(!matches.length){var f=foods.filter(function(x){return clean.indexOf(x.n.toLowerCase())>=0;}).sort(function(a,b){return b.n.length-a.n.length;})[0];if(f)matches.push({n:f.n,g:100,k:f.k,p:f.p,c:f.c,f:f.f});}
-  matches.forEach(function(x){total.g+=x.g;total.k+=x.k;total.p+=x.p;total.c+=x.c;total.f+=x.f;});
-  return matches.length?{items:matches,total:total}:null;
+function botParseFoods(input) {
+  var s=input.toLowerCase().replace(/[٠-٩]/g,function(x){return "٠١٢٣٤٥٦٧٨٩".indexOf(x);}).replace(/[٫،]/g,".").trim();
+  var parts=s.split(/\\s+(?:و|مع)\\s+|[,؛;+]/).filter(Boolean), out=[];
+  parts.forEach(function(part){
+    var m=part.match(/^\\s*(\\d+(?:[.]\\d+)?)\\s*(كجم|كيلو|جم|جرام|غرام|غ|g|kg)?\\s*(.*?)\\s*$/i);
+    var amount=m?Number(m[1]):100, unit=m?(m[2]||""): "", name=m?m[3]:part;
+    if(!name) return;
+    var gram=/كجم|كيلو|kg/i.test(unit)?amount*1000:/جم|جرام|غرام|غ|^g$/i.test(unit)?amount:null;
+    var aliases={"بيض":"egg","بيضة":"egg","بيضه":"egg","بيض كامل":"egg","عيش بلدي":"Egyptian bread","فراخ":"chicken","صدور فراخ":"chicken breast","رز":"rice","أرز":"rice","موز":"banana","تفاح":"apple","لبن":"milk","زبادي":"yogurt","تونة":"tuna","بطاطس":"potato","شوفان":"oats"};
+    var key=Object.keys(aliases).sort(function(x,y){return y.length-x.length;}).filter(function(k){return name.indexOf(k)>=0;})[0];
+    if(key) name=aliases[key];
+    var count=!gram&&m?amount:null;
+    if(!gram) gram=count&&/egg|بيضة|بيض/.test(name)?count*50:count&&/banana|موز/.test(name)?count*118:count&&/apple|تفاح/.test(name)?count*180:100;
+    out.push({query:name,grams:gram,quantity:amount,unit:unit,assumed:!m||!unit});
+  });
+  return out;
 }
-function botReply(text) {
-  var result=botCalculate(text), msgs=UI.botMessages||(UI.botMessages=[]);
-  msgs.push({role:'user',text:text});
-  if(!result){msgs.push({role:'bot',text:'مش قادر أحدد الأكل من قاعدة البيانات. جرّب تكتب اسم مكوّن موجود في قسم الأكل، ومعاه الكمية بالجرام.'});UI.botLast=null;}
-  else {UI.botLast={name:text,items:result.items,total:result.total};var t=result.total;
-    msgs.push({role:'bot',text:'حسبت لك:\\n'+result.items.map(function(x){return x.n+' — '+Math.round(x.g)+' جم: '+Math.round(x.k)+' سعرة';}).join('\\n')+'\\n\\nالإجمالي: '+Math.round(t.k)+' سعرة\\nبروتين '+t.p.toFixed(1)+' جم · كارب '+t.c.toFixed(1)+' جم · دهون '+t.f.toFixed(1)+' جم\\n\\nملاحظة: أي كمية من غير تحديد اعتبرتها 100 جم.'});
+function botLocalLookup(query) {
+  var foods=allFoods(), q=query.toLowerCase();
+  var f=foods.filter(function(x){return x.n.toLowerCase().indexOf(q)>=0||q.indexOf(x.n.toLowerCase())>=0;}).sort(function(x,y){return y.n.length-x.n.length;})[0];
+  return f?{n:f.n,k:f.k,p:f.p,c:f.c,f:f.f,source:"قاعدة التطبيق"}:null;
+}
+async function botSearchFood(item) {
+  var url="https://world.openfoodfacts.org/cgi/search.pl?search_terms="+encodeURIComponent(item.query)+"&search_simple=1&action=process&json=1&page_size=10&fields=product_name,nutriments";
+  try {
+    var response=await fetch(url,{headers:{"Accept":"application/json"}});
+    if(!response.ok) throw new Error("search unavailable");
+    var data=await response.json(), products=data.products||[];
+    var valid=products.map(function(p){
+      var n=p.nutriments||{}, kcal=Number(n["energy-kcal_100g"]);
+      if(!kcal&&Number(n.energy_100g)) kcal=Number(n.energy_100g)/4.184;
+      return {n:p.product_name||item.query,k:kcal,p:Number(n.proteins_100g)||0,c:Number(n.carbohydrates_100g)||0,f:Number(n.fat_100g)||0};
+    }).filter(function(p){return p.k>0&&p.k<1000;});
+    if(valid.length) return Object.assign(valid[0],{source:"Open Food Facts"});
+  } catch(e) {}
+  return botLocalLookup(item.query);
+}
+async function botCalculate(text) {
+  var parsed=botParseFoods(text), found=[], total={g:0,k:0,p:0,c:0,f:0};
+  for(var i=0;i<parsed.length;i++){
+    var item=parsed[i], food=await botSearchFood(item);
+    if(!food) continue;
+    var scale=item.grams/100;
+    found.push({n:food.n,g:item.grams,k:food.k*scale,p:food.p*scale,c:food.c*scale,f:food.f*scale,source:food.source,assumed:item.assumed});
   }
-  UI.tab='calcbot';render();scrollTop();
+  found.forEach(function(x){total.g+=x.g;total.k+=x.k;total.p+=x.p;total.c+=x.c;total.f+=x.f;});
+  return found.length?{items:found,total:total}:null;
+}
+async function botReply(text) {
+  var msgs=UI.botMessages||(UI.botMessages=[]);
+  msgs.push({role:"user",text:text},{role:"bot",text:"ثواني، بدوّر على بيانات المكونات…"});
+  UI.tab="calcbot";render();scrollTop();
+  var result=await botCalculate(text);
+  msgs.pop();
+  if(!result){
+    msgs.push({role:"bot",text:"ملقيتش بيانات غذائية موثوقة للمكونات دي في البحث، ومش هخمن لك رقم. جرّب اسم أوضح أو اكتب المكونات كل واحد لوحده."});
+    UI.botLast=null;
+  } else {
+    UI.botLast={name:text,items:result.items,total:result.total};
+    var t=result.total, sources={};
+    result.items.forEach(function(x){sources[x.source]=true;});
+    var lines=result.items.map(function(x){return x.n+" — "+Math.round(x.g)+" جم: "+Math.round(x.k)+" سعرة";});
+    var assumptions=result.items.some(function(x){return x.assumed;})?"\\nالكمية اللي مفيهاش وزن اتقدرت كحصة تقريبية؛ راجع الجرامات قبل التسجيل.":"";
+    msgs.push({role:"bot",text:"تمام، دي الحسبة التقريبية:\\n"+lines.join("\\n")+"\\n\\nالإجمالي: "+Math.round(t.k)+" سعرة\\nبروتين "+t.p.toFixed(1)+" جم · كارب "+t.c.toFixed(1)+" جم · دهون "+t.f.toFixed(1)+" جم\\n\\nالمصدر: "+Object.keys(sources).join(" + ")+assumptions});
+  }
+  render();scrollTop();
 }
 function vFood() {
   var d = UI.date, es = dayEntries(d), t = dayTotals(d), T = S.targets;
