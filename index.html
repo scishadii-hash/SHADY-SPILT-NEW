@@ -1367,20 +1367,21 @@ async function botCalculate(text) {
 }
 async function botReply(text) {
   var msgs=UI.botMessages||(UI.botMessages=[]);
-  msgs.push({role:"user",text:text},{role:"bot",text:"ثواني، بدوّر على بيانات المكونات…"});
+  msgs.push({role:"user",text:text},{role:"bot",text:"بفهم المكونات والكميات وبحسبها…"});
   UI.tab="calcbot";render();scrollTop();
   var result=await botCalculate(text);
   msgs.pop();
-  if(!result){
-    msgs.push({role:"bot",text:"ملقيتش بيانات غذائية موثوقة للمكونات دي في البحث، ومش هخمن لك رقم. جرّب اسم أوضح أو اكتب المكونات كل واحد لوحده."});
+  if(!result||!result.items.length){
+    msgs.push({role:"bot",text:"مش قادر أحدد الأكل المكتوب بدقة. جرّب تقول الكمية واسم الأكل بشكل أوضح، زي: «احسبلي 2 بيضة و2 رغيف عيش بلدي»."});
     UI.botLast=null;
   } else {
     UI.botLast={name:text,items:result.items,total:result.total};
     var t=result.total, sources={};
     result.items.forEach(function(x){sources[x.source]=true;});
-    var lines=result.items.map(function(x){return x.n+" — "+Math.round(x.g)+" جم: "+Math.round(x.k)+" سعرة";});
-    var assumptions=result.items.some(function(x){return x.assumed;})?"\nالكمية اللي مفيهاش وزن اتقدرت كحصة تقريبية؛ راجع الجرامات قبل التسجيل.":"";
-    msgs.push({role:"bot",text:"تمام، دي الحسبة التقريبية:\n"+lines.join("\n")+"\n\nالإجمالي: "+Math.round(t.k)+" سعرة\nبروتين "+t.p.toFixed(1)+" جم · كارب "+t.c.toFixed(1)+" جم · دهون "+t.f.toFixed(1)+" جم\n\nالمصدر: "+Object.keys(sources).join(" + ")+assumptions});
+    var lines=result.items.map(function(x){return "• "+x.n+" ("+Math.round(x.g)+" جم) = "+Math.round(x.k)+" سعرة";});
+    var missing=result.missing.length?"\n\nملحوظة: ماعرفتش أحدد "+result.missing.join("، ")+"؛ دول مش محسوبين في الإجمالي.":"";
+    var assumptions=result.items.some(function(x){return x.assumed;})?"\n\nالجرامات لبعض الكميات متقدّرة على حجم الحصة المعتاد؛ لو وزنها مختلف ابعتهولي أدق.":"";
+    msgs.push({role:"bot",text:"حاضر، حسبت اللي فهمته من كلامك:\n\n"+lines.join("\n")+"\n\nالمجموع: "+Math.round(t.k)+" سعرة تقريبًا\nالبروتين "+t.p.toFixed(1)+" جم · الكارب "+t.c.toFixed(1)+" جم · الدهون "+t.f.toFixed(1)+" جم"+missing+assumptions+"\n\nاعتمدت على: "+Object.keys(sources).join(" و ")+"."});
   }
   render();scrollTop();
 }
