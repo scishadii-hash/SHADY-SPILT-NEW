@@ -4,12 +4,12 @@ var CORE = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/maskable-192.png',
-  './icons/maskable-512.png',
-  './icons/apple-touch-icon.png',
-  './icons/favicon.png'
+  './Icons/icon-192.png',
+  './Icons/icon-512.png',
+  './Icons/maskable-192.png',
+  './Icons/maskable-512.png',
+  './Icons/apple-touch-icon.png',
+  './Icons/favicon.png'
 ];
 
 self.addEventListener('install', function (e) {
