@@ -1257,9 +1257,9 @@ function vCalorieBot() {
 }
 function botParseFoods(input) {
   var s=input.toLowerCase().replace(/[٠-٩]/g,function(x){return "٠١٢٣٤٥٦٧٨٩".indexOf(x);}).replace(/[٫،]/g,".").trim();
-  var parts=s.split(/\\s+(?:و|مع)\\s+|[,؛;+]/).filter(Boolean), out=[];
+  var parts=s.split(/\s+(?:و|مع)\s+|[,؛;+]/).filter(Boolean), out=[];
   parts.forEach(function(part){
-    var m=part.match(/^\\s*(\\d+(?:[.]\\d+)?)\\s*(كجم|كيلو|جم|جرام|غرام|غ|g|kg)?\\s*(.*?)\\s*$/i);
+    var m=part.match(/^\s*(\d+(?:[.]\d+)?)\s*(كجم|كيلو|جم|جرام|غرام|غ|g|kg)?\s*(.*?)\s*$/i);
     var amount=m?Number(m[1]):100, unit=m?(m[2]||""): "", name=m?m[3]:part;
     if(!name) return;
     var gram=/كجم|كيلو|kg/i.test(unit)?amount*1000:/جم|جرام|غرام|غ|^g$/i.test(unit)?amount:null;
@@ -1317,8 +1317,8 @@ async function botReply(text) {
     var t=result.total, sources={};
     result.items.forEach(function(x){sources[x.source]=true;});
     var lines=result.items.map(function(x){return x.n+" — "+Math.round(x.g)+" جم: "+Math.round(x.k)+" سعرة";});
-    var assumptions=result.items.some(function(x){return x.assumed;})?"\\nالكمية اللي مفيهاش وزن اتقدرت كحصة تقريبية؛ راجع الجرامات قبل التسجيل.":"";
-    msgs.push({role:"bot",text:"تمام، دي الحسبة التقريبية:\\n"+lines.join("\\n")+"\\n\\nالإجمالي: "+Math.round(t.k)+" سعرة\\nبروتين "+t.p.toFixed(1)+" جم · كارب "+t.c.toFixed(1)+" جم · دهون "+t.f.toFixed(1)+" جم\\n\\nالمصدر: "+Object.keys(sources).join(" + ")+assumptions});
+    var assumptions=result.items.some(function(x){return x.assumed;})?"\nالكمية اللي مفيهاش وزن اتقدرت كحصة تقريبية؛ راجع الجرامات قبل التسجيل.":"";
+    msgs.push({role:"bot",text:"تمام، دي الحسبة التقريبية:\n"+lines.join("\n")+"\n\nالإجمالي: "+Math.round(t.k)+" سعرة\nبروتين "+t.p.toFixed(1)+" جم · كارب "+t.c.toFixed(1)+" جم · دهون "+t.f.toFixed(1)+" جم\n\nالمصدر: "+Object.keys(sources).join(" + ")+assumptions});
   }
   render();scrollTop();
 }
