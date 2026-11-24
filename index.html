@@ -98,6 +98,7 @@ ul.ls li{margin-bottom:3px}
 .tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px 7px;background:none;border:0;color:var(--muted);font-size:11.5px;cursor:pointer;min-height:56px}
 .tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
 .tabs button.on{color:var(--accent);font-weight:600}
+.bot-chat{display:flex;flex-direction:column;gap:10px}.bot-msg{max-width:92%;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);white-space:pre-line}.bot-msg.user{align-self:flex-start;background:var(--accent-soft);border-color:#5b171b}.bot-msg.bot{align-self:flex-end}.bot-entry{display:flex;gap:8px;position:sticky;bottom:68px;background:var(--bg);padding:8px 0}.bot-entry input{flex:1;min-width:0}.bot-entry button{white-space:nowrap}
 .list-row{display:flex;width:100%;text-align:right;gap:10px;align-items:center;padding:11px 0;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer}
 .list-row:last-child{border-bottom:0}
 .list-row .grow b{font-weight:600}
@@ -1033,7 +1034,7 @@ function waterCups() { return Math.round((num(S.profile.weight, 65) * 0.035 + 0.
 
 /* ===== الحالة ===== */
 var S = null;
-var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [] };
+var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [], botMessages: [{role:'bot',text:'أهلاً! اكتب أكلك والكميات، مثال: 150 جم رز مطبوخ و200 جم فراخ مشوية. هحسب لك السعرات والماكروز.'}], botLast: null, botMeal: 'lunch' };
 
 function defaults() {
   var s = {
@@ -1175,7 +1176,8 @@ function lineChart(pts, o) {
 /* ===== ملاحة وإشعارات ===== */
 var NAV = [
   ['today', 'اليوم', '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>'],
-  ['food', 'الأكل', '<path d="M7 3v8a2 2 0 0 0 2 2v8"/><path d="M5 3v6"/><path d="M9 3v6"/><path d="M17 3c-2 2-3 5-3 8h3v10"/>'],
+  ['food', 'الأكل', '<path d="M7 3v8a2 2 0 0 0 2 2v8"/><path d="M5 3v6"/><path d="M9 3v6"/><path d="M17 3c-2 2-3 5-3 8h3v10"'],
+  ['calcbot', 'بوت السعرات', '<path d="M12 3v3"/><rect x="4" y="7" width="16" height="14" rx="3"/><path d="M8 12h.01M16 12h.01M8 16h8"/>'],
   ['work', 'التمرين', '<path d="M6.5 6.5v11"/><path d="M17.5 6.5v11"/><path d="M3.5 9v6"/><path d="M20.5 9v6"/><path d="M6.5 12h11"/>'],
   ['prog', 'التقدم', '<path d="M3 20h18"/><path d="M5 16l5-5 4 3 6-8"/>'],
   ['muscle', 'العضلات', '<circle cx="12" cy="5" r="2.5"/><path d="M7 21v-8l-2-4 3-2h8l3 2-2 4v8"/><path d="M12 11v10"/>']
@@ -1242,6 +1244,41 @@ function vToday() {
 }
 
 /* ===== شاشة الأكل ===== */
+function vCalorieBot() {
+  var msgs=UI.botMessages||[], h='<div class="card"><div class="row between"><div><h2 style="margin:0">🤖 بوت السعرات</h2><p class="muted sm" style="margin:4px 0 0">اكتب الأكل والكمية، والبوت يحسب القيم التقريبية.</p></div><span class="chip">تقديري</span></div></div>';
+  h+='<div class="card bot-chat" id="botChat">';
+  msgs.slice(-24).forEach(function(m){h+='<div class="bot-msg '+(m.role==='user'?'user':'bot')+'">'+esc(m.text)+'</div>';});
+  h+='</div><div class="card"><label class="f" for="botMeal">سجّل الحساب في وجبة</label><select id="botMeal" class="input" style="width:100%;padding:12px;border-radius:10px;background:var(--surface2);border:1px solid var(--line);color:var(--fg)">';
+  MEALS.forEach(function(m){h+='<option value="'+m[0]+'" '+(UI.botMeal===m[0]?'selected':'')+'>'+esc(m[1])+'</option>';});
+  h+='</select>';
+  if(UI.botLast) h+='<button class="btn block" style="margin-top:10px" data-a="botLog">➕ أضف آخر حساب لوجبة اليوم</button>';
+  h+='</div><form class="bot-entry" id="botForm"><input id="botInput" placeholder="مثلاً: 2 بيضة و100 جم عيش بلدي" autocomplete="off"><button class="btn" type="submit">احسب</button></form><p class="muted xs">الحساب يعتمد على قاعدة الأطعمة في التطبيق. لو الاسم أو الكمية مش واضحة، البوت هينبهك؛ النتائج مش بديل لبيانات غذائية دقيقة.</p>';
+  return h;
+}
+function botCalculate(text) {
+  var foods=allFoods(), clean=text.toLowerCase().replace(/[،,؛;]/g,' ').trim(), matches=[], total={g:0,k:0,p:0,c:0,f:0};
+  var rx=/([0-9٠-٩]+(?:[.,٫][0-9٠-٩]+)?)\s*(?:جم|جرام|غرام|غ|g|كجم|كيلو)?/gi, arr=[], m;
+  while((m=rx.exec(clean))!==null){var raw=m[1].replace(/[٠-٩]/g,function(x){return '٠١٢٣٤٥٦٧٨٩'.indexOf(x);}).replace(/[٫,]/g,'.'); var q=Number(raw); if(q>0&&q<10000) arr.push({at:m.index,end:rx.lastIndex,g:q});}
+  if(arr.length){
+    arr.forEach(function(q,i){var start=q.end, end=i+1<arr.length?arr[i+1].at:clean.length, phrase=clean.slice(start,end).replace(/\b(?:جم|جرام|غرام|غ|g|كجم|كيلو)\b/gi,' ').trim();
+      var f=foods.filter(function(x){return phrase.indexOf(x.n.toLowerCase())>=0;}).sort(function(a,b){return b.n.length-a.n.length;})[0];
+      if(!f){var words=phrase.split(/\s+/); f=foods.filter(function(x){return words.some(function(w){return w.length>2&&x.n.toLowerCase().indexOf(w)>=0;});}).sort(function(a,b){return b.n.length-a.n.length;})[0];}
+      if(f){var g=q.g;if(/كجم|كيلو/i.test(clean.slice(q.at,q.end)))g*=1000;var z=g/100;matches.push({n:f.n,g:g,k:f.k*z,p:f.p*z,c:f.c*z,f:f.f*z});}
+    });
+  }
+  if(!matches.length){var f=foods.filter(function(x){return clean.indexOf(x.n.toLowerCase())>=0;}).sort(function(a,b){return b.n.length-a.n.length;})[0];if(f)matches.push({n:f.n,g:100,k:f.k,p:f.p,c:f.c,f:f.f});}
+  matches.forEach(function(x){total.g+=x.g;total.k+=x.k;total.p+=x.p;total.c+=x.c;total.f+=x.f;});
+  return matches.length?{items:matches,total:total}:null;
+}
+function botReply(text) {
+  var result=botCalculate(text), msgs=UI.botMessages||(UI.botMessages=[]);
+  msgs.push({role:'user',text:text});
+  if(!result){msgs.push({role:'bot',text:'مش قادر أحدد الأكل من قاعدة البيانات. جرّب تكتب اسم مكوّن موجود في قسم الأكل، ومعاه الكمية بالجرام.'});UI.botLast=null;}
+  else {UI.botLast={name:text,items:result.items,total:result.total};var t=result.total;
+    msgs.push({role:'bot',text:'حسبت لك:\\n'+result.items.map(function(x){return x.n+' — '+Math.round(x.g)+' جم: '+Math.round(x.k)+' سعرة';}).join('\\n')+'\\n\\nالإجمالي: '+Math.round(t.k)+' سعرة\\nبروتين '+t.p.toFixed(1)+' جم · كارب '+t.c.toFixed(1)+' جم · دهون '+t.f.toFixed(1)+' جم\\n\\nملاحظة: أي كمية من غير تحديد اعتبرتها 100 جم.'});
+  }
+  UI.tab='calcbot';render();scrollTop();
+}
 function vFood() {
   var d = UI.date, es = dayEntries(d), t = dayTotals(d), T = S.targets;
   var h = '<div class="row between" style="margin-top:12px"><button class="icon-btn" data-a="dateGo" data-n="-1" aria-label="اليوم السابق"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>';
@@ -1691,6 +1728,7 @@ function render() {
   try {
     if (t === 'today') h = vToday();
     else if (t === 'food') h = vFood();
+    else if (t === 'calcbot') h = vCalorieBot();
     else if (t === 'work') h = vWork();
     else if (t === 'prog') h = vProg();
     else if (t === 'muscle') h = vMuscle();
@@ -1797,6 +1835,7 @@ var ACT = {
   recipeAdd: function (t) { var f = foodById(t.dataset.id), g = num($('#recipeG').value,100); if (!f || g <= 0) { toast('اكتب كمية صحيحة بالجرام'); return; } var m=g/100; UI.recipeItems.push({id:f.id,n:f.n,g:g,k:f.k*m,p:f.p*m,c:f.c*m,f:f.f*m}); UI.recipeQ=''; render(); },
   recipeRemove: function (t) { UI.recipeItems.splice(+t.dataset.i,1); render(); },
   recipeSave: function () { var name=$('#recipeName').value.trim(), items=UI.recipeItems||[]; if(!name){toast('اكتب اسم الأكلة');return;} if(!items.length){toast('ضيف مكون واحد على الأقل');return;} var sum={g:0,k:0,p:0,c:0,f:0}; items.forEach(function(x){sum.g+=x.g;sum.k+=x.k;sum.p+=x.p;sum.c+=x.c;sum.f+=x.f;}); (S.food[UI.date]=S.food[UI.date]||[]).push({id:uid(),meal:UI.sheet.meal,fid:null,n:name+' (مكونات)',g:sum.g,k:sum.k,p:sum.p,c:sum.c,f:sum.f,cost:0,recipe:items}); saveSoon(); UI.sheet=null; toast('اتحسبت الأكلة واتضافت للوجبة'); render(); },
+  botLog: function(){var r=UI.botLast;if(!r)return;var t=r.total,d=today(),name=r.name+' (حساب البوت)';(S.food[d]=S.food[d]||[]).push({id:uid(),meal:UI.botMeal||'lunch',fid:null,n:name,g:t.g,k:t.k,p:t.p,c:t.c,f:t.f,cost:0,bot:true});saveSoon();toast('اتضاف حساب البوت لوجبة اليوم');UI.tab='food';UI.date=d;render();},
   foodCat: function (t) { UI.fc = t.dataset.v; render(); },
   selFood: function (t) { var f = foodById(t.dataset.id); if (!f) return; UI.sheet = { type: 'food', mode: 'detail', meal: UI.sheet.meal, fid: f.id, g: f.g, cost: '' }; render(); },
   servMult: function (t) {
@@ -1943,6 +1982,7 @@ var ACT = {
   }
 };
 
+document.addEventListener('submit',function(e){if(e.target&&e.target.id==='botForm'){e.preventDefault();var inp=$('#botInput'),v=inp?inp.value.trim():'';if(v){botReply(v);}}});
 document.addEventListener('click', function (e) {
   var t = e.target.closest ? e.target.closest('[data-a]') : null;
   if (!t) return;
@@ -1955,6 +1995,7 @@ document.addEventListener('input', function (e) {
   if (ds.pd) { S.plan.days[+ds.di].n = t.value; planTouch(); return; }
   if (ds.pk) { var ex = S.plan.days[+ds.di].ex[+ds.ei]; if (ds.pk === 'sets') ex.sets = Math.max(1, parseInt(t.value) || 1); else ex.reps = t.value; planTouch(); return; }
   if (id === 'fq') { UI.fq = t.value; var l = $('#foodList'); if (l) l.innerHTML = foodListHtml(); return; }
+  if (id === 'botMeal') { UI.botMeal=t.value; return; }
   if (id === 'recipeQ') { UI.recipeQ=t.value; var rm=$('#recipeMatches'); if(rm) rm.innerHTML=recipeMatchesHtml(allFoods().filter(function(f){return !UI.recipeQ.trim()||f.n.toLowerCase().indexOf(UI.recipeQ.trim().toLowerCase())>=0;}).slice(0,18)); return; }
   if (id === 'fg') { var sh = UI.sheet; if (sh && sh.type === 'food') { sh.g = num(t.value); var f = foodById(sh.fid), m = $('#fmacros'); if (f && m) m.innerHTML = foodMacrosHtml(f, sh.g); } return; }
   if (id === 'lq') { UI.lq = t.value; var l2 = $('#libList'); if (l2) l2.innerHTML = exListHtml(false); return; }
