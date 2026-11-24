@@ -1245,14 +1245,14 @@ function vToday() {
 
 /* ===== شاشة الأكل ===== */
 function vCalorieBot() {
-  var msgs=UI.botMessages||[], h='<div class="card"><div class="row between"><div><h2 style="margin:0">🤖 بوت السعرات</h2><p class="muted sm" style="margin:4px 0 0">اكتب الأكل والكمية، والبوت يحسب القيم التقريبية.</p></div><span class="chip">تقديري</span></div></div>';
+  var msgs=UI.botMessages||[], h='<div class="card"><div class="row between"><div><h2 style="margin:0">🤖 بوت السعرات</h2><p class="muted sm" style="margin:4px 0 0">اكتب أكلك بطريقتك؛ البوت بيدوّر على بياناته أونلاين ويحسبها.</p></div><span class="chip">تقديري</span></div></div>';
   h+='<div class="card bot-chat" id="botChat">';
   msgs.slice(-24).forEach(function(m){h+='<div class="bot-msg '+(m.role==='user'?'user':'bot')+'">'+esc(m.text)+'</div>';});
   h+='</div><div class="card"><label class="f" for="botMeal">سجّل الحساب في وجبة</label><select id="botMeal" class="input" style="width:100%;padding:12px;border-radius:10px;background:var(--surface2);border:1px solid var(--line);color:var(--fg)">';
   MEALS.forEach(function(m){h+='<option value="'+m[0]+'" '+(UI.botMeal===m[0]?'selected':'')+'>'+esc(m[1])+'</option>';});
   h+='</select>';
   if(UI.botLast) h+='<button class="btn block" style="margin-top:10px" data-a="botLog">➕ أضف آخر حساب لوجبة اليوم</button>';
-  h+='</div><form class="bot-entry" id="botForm"><input id="botInput" placeholder="مثلاً: 2 بيضة و100 جم عيش بلدي" autocomplete="off"><button class="btn" type="submit">احسب</button></form><p class="muted xs">الحساب يعتمد على قاعدة الأطعمة في التطبيق. لو الاسم أو الكمية مش واضحة، البوت هينبهك؛ النتائج مش بديل لبيانات غذائية دقيقة.</p>';
+  h+='</div><form class="bot-entry" id="botForm"><input id="botInput" placeholder="مثلاً: 2 بيضة و100 جم عيش بلدي" autocomplete="off"><button class="btn" type="submit">احسب</button></form><p class="muted xs">البحث أونلاين من Open Food Facts، والقيم تقريبية وقد تختلف حسب المنتج وطريقة التحضير. اتأكد من الوزن والنتيجة قبل تسجيلها.</p>';
   return h;
 }
 function botParseFoods(input) {
