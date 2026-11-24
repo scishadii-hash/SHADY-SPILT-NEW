@@ -1017,6 +1017,7 @@ function bmrOf(p) {
 }
 function calcTargets(p) {
   var bmr = bmrOf(p), tdee = bmr * num(p.act, 1.55), g = GOALS[p.goal] || GOALS.maint;
+  if (!num(p.age) || !num(p.height) || !num(p.weight)) return { auto: true, kcal: 0, p: 0, c: 0, f: 0, bmr: 0, tdee: 0 };
   var kcal = Math.round((tdee + g.off) / 10) * 10;
   var w = num(p.weight);
   var pr = Math.round(w * g.pk), fat = Math.round(w * 1.0);
@@ -1037,23 +1038,26 @@ var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: nu
 function defaults() {
   var s = {
     v: 1, u: 0,
-    profile: { sex: 'm', age: 19, height: 170, weight: 65, act: 1.65, goal: 'bulk', bf: '' },
+    profile: { sex: '', age: '', height: '', weight: '', act: 1.55, goal: 'maint', bf: '' },
     targets: { auto: true, kcal: 0, p: 0, c: 0, f: 0 },
-    budget: 80, restSec: 90,
+    budget: 0, restSec: 90, setupComplete: false,
     food: {}, customFoods: [], water: {}, weights: [], meas: [],
     plan: { splitId: 'ppl6', days: splitDays('ppl6'), lastIdx: -1, starter: true },
     sessions: [], draft: null
   };
   s.targets = calcTargets(s.profile);
-  s.weights.push({ d: today(), kg: s.profile.weight });
+  // No initial weight entry; user enters their own weight.
   return s;
 }
 function migrate() {
+  var hadProfile = !!(S.profile && num(S.profile.age) && num(S.profile.weight));
+  var setupWasDefined = S.setupComplete != null;
   var d = defaults();
   Object.keys(d).forEach(function (k) { if (S[k] == null) S[k] = d[k]; });
   if (!S.profile) S.profile = d.profile;
   if (!S.plan || !S.plan.days) S.plan = d.plan;
   if (!S.targets) S.targets = d.targets;
+  if (!setupWasDefined) S.setupComplete = hadProfile;
 }
 
 /* ===== التخزين ===== */
@@ -1202,6 +1206,7 @@ function lastWeight() { return S.weights.length ? S.weights[S.weights.length - 1
 function nextDayIdx() { var n = S.plan.days.length; return n ? (S.plan.lastIdx + 1) % n : -1; }
 function vToday() {
   var d = today(), T = S.targets, t = dayTotals(d), rem = T.kcal - t.k;
+  if (!S.setupComplete) return '<section class="card" style="margin-top:18px"><h2>أهلًا بيك 👋</h2><p>لسه مفيش بيانات شخصية متسجلة. الأرقام والأهداف هتتحسب بعد ما تدخل بياناتك، مش هنفترضها من عندنا.</p><button class="btn block" data-a="tab" data-t="settings">ابدأ إعداد بياناتك</button><p class="muted sm">هتدخل السن والطول والوزن ومستوى النشاط وهدفك، وبعدها تظهر حساباتك.</p></section>';
   var h = '<h2 style="margin-top:14px">' + dLabel(d) + '</h2>';
   h += '<section class="card"><div class="row">' + ringSvg(t.k, T.kcal, 'السعرات المأكولة', 'من ' + T.kcal + ' سعرة');
   h += '<div class="grow"><div class="stat"><span>' + (rem >= 0 ? 'باقي لك' : 'زيادة عن الهدف') + '</span><b>' + Math.abs(r0(rem)) + ' سعرة</b></div>';
@@ -1664,15 +1669,15 @@ function vMuscle() {
 function vSettings() {
   var P = S.profile, T = S.targets, g = GOALS[P.goal] || GOALS.maint;
   var h = '<div class="row between" style="margin-top:12px"><h2 style="margin:0">الإعدادات والحاسبة</h2><button class="btn ghost sm" data-a="tab" data-t="today">رجوع</button></div>';
-  h += '<section class="card" style="margin-top:12px"><h3>بياناتك</h3>';
+  h += '<section class="card" style="margin-top:12px"><h3>' + (S.setupComplete ? 'بياناتك' : 'ابدأ إعداد بياناتك') + '</h3>' + (!S.setupComplete ? '<p class="muted">املأ بياناتك بنفسك؛ مش هنحط سن أو طول أو وزن افتراضي.</p>' : '');
   h += '<div class="field"><label class="f">النوع</label>' + chipRow([['m', 'ذكر'], ['f', 'أنثى']], P.sex, 'pfChip', true).replace(/data-a="pfChip"/g, 'data-a="pfChip" data-k="sex"') + '</div>';
-  h += '<div class="fgrid"><div class="field"><label class="f" for="pf_age">السن</label><input id="pf_age" data-pf="age" inputmode="numeric" value="' + P.age + '"></div><div class="field"><label class="f" for="pf_height">الطول (سم)</label><input id="pf_height" data-pf="height" inputmode="decimal" value="' + P.height + '"></div><div class="field"><label class="f" for="pf_weight">الوزن (كجم)</label><input id="pf_weight" data-pf="weight" inputmode="decimal" value="' + P.weight + '"></div><div class="field"><label class="f" for="pf_bf">نسبة الدهون % (اختياري)</label><input id="pf_bf" data-pf="bf" inputmode="decimal" value="' + esc(P.bf) + '"></div></div>';
+  h += '<div class="fgrid"><div class="field"><label class="f" for="pf_age">السن</label><input id="pf_age" data-pf="age" inputmode="numeric" value="' + esc(P.age) + '"></div><div class="field"><label class="f" for="pf_height">الطول (سم)</label><input id="pf_height" data-pf="height" inputmode="decimal" value="' + esc(P.height) + '"></div><div class="field"><label class="f" for="pf_weight">الوزن (كجم)</label><input id="pf_weight" data-pf="weight" inputmode="decimal" value="' + esc(P.weight) + '"></div><div class="field"><label class="f" for="pf_bf">نسبة الدهون % (اختياري)</label><input id="pf_bf" data-pf="bf" inputmode="decimal" value="' + esc(P.bf) + '"></div></div>';
   h += '<div class="field"><label class="f" for="pf_act">مستوى النشاط</label><select id="pf_act" data-pf="act">' + ACTS.map(function (a) { return '<option value="' + a[0] + '"' + (num(P.act) === a[0] ? ' selected' : '') + '>' + a[1] + '</option>'; }).join('') + '</select></div>';
   h += '<div class="field" style="margin:0"><label class="f">هدفك</label>' + chipRow(Object.keys(GOALS).map(function (k) { return [k, GOALS[k].n]; }), P.goal, 'pfChip', true).replace(/data-a="pfChip"/g, 'data-a="pfChip" data-k="goal"') + '</div></section>';
-  h += '<section class="card"><h3>احتياجك اليومي</h3><div class="grid2"><div class="stat"><b>' + T.bmr + '</b><span>معدل الحرق الأساسي</span></div><div class="stat"><b>' + T.tdee + '</b><span>الحرق مع نشاطك</span></div></div>';
+  h += '<section class="card"><h3>احتياجك اليومي</h3>' + (!S.setupComplete ? '<p class="muted">كمّل بياناتك واضغط حفظ عشان نعرض الحسابات.</p>' : '') + '<div class="grid2"><div class="stat"><b>' + T.bmr + '</b><span>معدل الحرق الأساسي</span></div><div class="stat"><b>' + T.tdee + '</b><span>الحرق مع نشاطك</span></div></div>';
   h += '<div class="stat" style="margin-top:10px"><b style="font-size:30px">' + T.kcal + ' سعرة</b><span>هدفك اليومي (' + g.d + ')' + (T.auto === false ? ' · معدّل يدويًا' : '') + '</span></div>';
   h += '<div class="grid2" style="margin-top:10px"><div class="stat"><b>' + T.p + ' جم</b><span>بروتين (' + r0(T.p * 4 / Math.max(1, T.kcal) * 100) + '%)</span></div><div class="stat"><b>' + T.c + ' جم</b><span>نشويات (' + r0(T.c * 4 / Math.max(1, T.kcal) * 100) + '%)</span></div><div class="stat"><b>' + T.f + ' جم</b><span>دهون (' + r0(T.f * 9 / Math.max(1, T.kcal) * 100) + '%)</span></div></div>';
-  h += '<details><summary>إزاي اتحسبت؟</summary><ul class="ls"><li>معدل الحرق الأساسي بمعادلة Mifflin-St Jeor' + (num(P.bf) > 3 ? '، ولأنك كتبت نسبة الدهون استخدمنا معادلة Katch-McArdle' : '') + '.</li><li>ضربناه في معامل النشاط (' + P.act + ') عشان نعرف حرقك اليومي.</li><li>أضفنا أو طرحنا حسب هدفك (' + g.d + ').</li><li>البروتين ' + g.pk + ' جم لكل كجم من وزنك، والدهون 1 جم لكل كجم، والباقي نشويات.</li><li>الأرقام تقديرية: راقب وزنك أسبوعين وعدّل 150 إلى 250 سعرة لو لزم.</li></ul></details>';
+  h += (!S.setupComplete ? '<button class="btn block" data-a="setupFinish">حفظ بياناتي وابدأ</button>' : '') + '<details><summary>إزاي اتحسبت؟</summary><ul class="ls"><li>معدل الحرق الأساسي بمعادلة Mifflin-St Jeor' + (num(P.bf) > 3 ? '، ولأنك كتبت نسبة الدهون استخدمنا معادلة Katch-McArdle' : '') + '.</li><li>ضربناه في معامل النشاط (' + P.act + ') عشان نعرف حرقك اليومي.</li><li>أضفنا أو طرحنا حسب هدفك (' + g.d + ').</li><li>البروتين ' + g.pk + ' جم لكل كجم من وزنك، والدهون 1 جم لكل كجم، والباقي نشويات.</li><li>الأرقام تقديرية: راقب وزنك أسبوعين وعدّل 150 إلى 250 سعرة لو لزم.</li></ul></details>';
   h += '<details><summary>تعديل الأهداف يدويًا</summary><div class="fgrid" style="margin-top:8px"><div class="field"><label class="f" for="tg_kcal">سعرات</label><input id="tg_kcal" data-tg="kcal" inputmode="numeric" value="' + T.kcal + '"></div><div class="field"><label class="f" for="tg_p">بروتين</label><input id="tg_p" data-tg="p" inputmode="numeric" value="' + T.p + '"></div><div class="field"><label class="f" for="tg_c">نشويات</label><input id="tg_c" data-tg="c" inputmode="numeric" value="' + T.c + '"></div><div class="field"><label class="f" for="tg_f">دهون</label><input id="tg_f" data-tg="f" inputmode="numeric" value="' + T.f + '"></div></div>' + (T.auto === false ? '<button class="btn ghost sm" data-a="autoTargets">ارجع للحساب التلقائي</button>' : '') + '</details></section>';
   h += '<section class="card"><h3>الميزانية</h3><div class="field" style="margin:0"><label class="f" for="budget">ميزانية الأكل اليومية بالجنيه (صفر لإخفائها)</label><input id="budget" inputmode="numeric" value="' + S.budget + '"></div></section>';
   h += '<section class="card"><h3>نسخة احتياطية</h3><p class="muted sm">بياناتك بتتحفظ تلقائي. للأمان خد نسخة ملف، أو استرجع نسخة قديمة.</p><div class="row rw"><button class="btn" data-a="exportData">حفظ نسخة</button><label class="btn ghost" style="cursor:pointer">استرجاع من ملف<input id="impFile" type="file" accept=".json,application/json" hidden></label></div><div id="expBox"></div></section>';
@@ -1922,6 +1927,7 @@ var ACT = {
 
   /* إعدادات */
   pfChip: function (t) { S.profile[t.dataset.k] = t.dataset.v; refreshTargets(); saveSoon(); render(); },
+  setupFinish: function () { var p=S.profile; if(num(p.age)<13||num(p.age)>100||num(p.height)<80||num(p.height)>250||num(p.weight)<20||num(p.weight)>400){toast('راجع السن والطول والوزن واكتب بيانات صحيحة');return;} S.setupComplete=true; S.weights.push({d:today(),kg:num(p.weight)}); refreshTargets(); saveSoon(); toast('اتحفظت بياناتك واتحسبت أهدافك'); UI.tab='today'; render(); },
   autoTargets: function () { S.targets = calcTargets(S.profile); saveSoon(); render(); },
   exportData: function () {
     var json = JSON.stringify(S, null, 1);
