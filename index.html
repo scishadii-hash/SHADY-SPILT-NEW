@@ -1032,7 +1032,7 @@ function waterCups() { return Math.round((num(S.profile.weight, 65) * 0.035 + 0.
 
 /* ===== الحالة ===== */
 var S = null;
-var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null };
+var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [] };
 
 function defaults() {
   var s = {
@@ -1276,6 +1276,23 @@ function foodListHtml() {
     return '<button class="list-row" data-a="selFood" data-id="' + f.id + '"><div class="grow"><b>' + esc(f.n) + '</b><div class="muted sm">' + esc(f.u) + ' (' + f.g + ' جم) = ' + r0(sv) + ' سعرة · بروتين ' + r1(f.p * f.g / 100) + '</div></div><span class="kc muted">' + f.k + '<span class="xs"> /100جم</span></span></button>';
   }).join('');
 }
+function recipeBuilderHtml() {
+  var items = UI.recipeItems || [], total = {g:0,k:0,p:0,c:0,f:0};
+  items.forEach(function(x){ total.g+=x.g; total.k+=x.k; total.p+=x.p; total.c+=x.c; total.f+=x.f; });
+  var q = (UI.recipeQ || '').trim().toLowerCase();
+  var foods = allFoods().filter(function(f){ return !q || f.n.toLowerCase().indexOf(q)>=0; }).slice(0,18);
+  var h = '<div class="card"><div class="field"><label class="f" for="recipeName">اسم الأكلة / الطبخة</label><input id="recipeName" placeholder="مثلاً: صينية فراخ بالرز"></div><div class="fgrid"><div class="field"><label class="f" for="recipeQ">اكتب اسم المكون</label><input id="recipeQ" placeholder="رز، فراخ، زيت..." value="' + esc(UI.recipeQ || '') + '"></div><div class="field"><label class="f" for="recipeG">كمية المكون بالجرام</label><input id="recipeG" inputmode="decimal" value="' + (UI.recipeG || 100) + '"></div></div><p class="muted sm">اختار كل مكون وحدد وزنه. الحساب تقريبي حسب قاعدة الأكلات داخل التطبيق.</p><div id="recipeMatches">' + recipeMatchesHtml(foods) + '</div></div>';
+  h += '<div class="card"><h3>مكونات الأكلة (' + items.length + ')</h3>';
+  if (!items.length) h += '<p class="muted">لسه مفيش مكونات مضافة.</p>';
+  items.forEach(function(x,i){ h += '<div class="row between" style="padding:6px 0"><div class="grow"><b>' + esc(x.n) + '</b><div class="muted sm">' + r0(x.g) + ' جم · ' + r0(x.k) + ' سعرة</div></div><button class="btn danger sm" data-a="recipeRemove" data-i="' + i + '">حذف</button></div>'; });
+  h += '<div class="grid2" style="margin-top:10px"><div class="stat"><b>' + r0(total.k) + '</b><span>سعرة إجمالي</span></div><div class="stat"><b>' + r1(total.p) + '</b><span>بروتين جم</span></div><div class="stat"><b>' + r1(total.c) + '</b><span>نشويات جم</span></div><div class="stat"><b>' + r1(total.f) + '</b><span>دهون جم</span></div></div></div>';
+  h += '<div class="row" style="margin-top:12px"><button class="btn grow" data-a="recipeSave">احسب واحفظ في الوجبة</button><button class="btn ghost" data-a="backFoods">رجوع</button></div>';
+  return h;
+}
+function recipeMatchesHtml(foods) {
+  if (!foods.length) return '<p class="muted">مش لاقي المكون ده في قاعدة الأكلات؛ جرّب اسم أقرب أو أضف أكلة من قاعدة التطبيق.</p>';
+  return foods.map(function(f){ return '<button class="list-row" data-a="recipeAdd" data-id="' + f.id + '"><div class="grow"><b>' + esc(f.n) + '</b><div class="muted sm">' + f.k + ' سعرة / 100 جم</div></div><span class="kc">+ إضافة</span></button>'; }).join('');
+}
 function foodDetailHtml(sh) {
   var f = foodById(sh.fid); if (!f) return '';
   var m = sh.g / 100;
@@ -1308,8 +1325,8 @@ function renderSheet() {
       var cats = [['all', 'الكل'], ['recent', 'الأخيرة']];
       Object.keys(FOOD_CATS).forEach(function (k) { cats.push([k, FOOD_CATS[k]]); });
       if (S.customFoods.length) cats.push(['custom', 'أكلاتي']);
-      body = '<input id="fq" placeholder="دوّر على أكلة..." value="' + esc(UI.fq) + '" aria-label="بحث عن أكلة">' + chipRow(cats, UI.fc, 'foodCat') + '<div id="foodList">' + foodListHtml() + '</div><button class="btn ghost block" style="margin-top:10px" data-a="customForm">+ أكلة جديدة</button>';
-    } else if (sh.mode === 'detail') { title = 'الكمية'; body = foodDetailHtml(sh); }
+      body = '<input id="fq" placeholder="دوّر على أكلة..." value="' + esc(UI.fq) + '" aria-label="بحث عن أكلة">' + chipRow(cats, UI.fc, 'foodCat') + '<div id="foodList">' + foodListHtml() + '</div><button class="btn ghost block" style="margin-top:10px" data-a="recipeMode">🧮 احسب أكلة بالمكونات</button><button class="btn ghost block" style="margin-top:8px" data-a="customForm">+ أكلة جديدة</button>';
+    } else if (sh.mode === 'detail') { title = 'الكمية'; body = foodDetailHtml(sh); } else if (sh.mode === 'recipe') { title = 'حاسبة سعرات أكلة بالمكونات'; body = recipeBuilderHtml(); }
     else { title = 'أكلة جديدة'; body = customFormHtml(); }
   } else if (sh.type === 'entry') {
     var e = dayEntries(sh.date).filter(function (x) { return x.id === sh.id; })[0];
@@ -1771,6 +1788,10 @@ var ACT = {
   dateGo: function (t) { var d = addDays(UI.date, num(t.dataset.n)); if (d > today()) return; UI.date = d; render(); },
   dateToday: function () { UI.date = today(); render(); },
   addFood: function (t) { UI.sheet = { type: 'food', mode: 'list', meal: t.dataset.meal }; UI.fq = ''; UI.fc = 'all'; render(); },
+  recipeMode: function () { UI.recipeItems = []; UI.recipeQ = ''; UI.recipeG = 100; UI.sheet.mode = 'recipe'; render(); },
+  recipeAdd: function (t) { var f = foodById(t.dataset.id), g = num($('#recipeG').value,100); if (!f || g <= 0) { toast('اكتب كمية صحيحة بالجرام'); return; } var m=g/100; UI.recipeItems.push({id:f.id,n:f.n,g:g,k:f.k*m,p:f.p*m,c:f.c*m,f:f.f*m}); UI.recipeQ=''; render(); },
+  recipeRemove: function (t) { UI.recipeItems.splice(+t.dataset.i,1); render(); },
+  recipeSave: function () { var name=$('#recipeName').value.trim(), items=UI.recipeItems||[]; if(!name){toast('اكتب اسم الأكلة');return;} if(!items.length){toast('ضيف مكون واحد على الأقل');return;} var sum={g:0,k:0,p:0,c:0,f:0}; items.forEach(function(x){sum.g+=x.g;sum.k+=x.k;sum.p+=x.p;sum.c+=x.c;sum.f+=x.f;}); (S.food[UI.date]=S.food[UI.date]||[]).push({id:uid(),meal:UI.sheet.meal,fid:null,n:name+' (مكونات)',g:sum.g,k:sum.k,p:sum.p,c:sum.c,f:sum.f,cost:0,recipe:items}); saveSoon(); UI.sheet=null; toast('اتحسبت الأكلة واتضافت للوجبة'); render(); },
   foodCat: function (t) { UI.fc = t.dataset.v; render(); },
   selFood: function (t) { var f = foodById(t.dataset.id); if (!f) return; UI.sheet = { type: 'food', mode: 'detail', meal: UI.sheet.meal, fid: f.id, g: f.g, cost: '' }; render(); },
   servMult: function (t) {
@@ -1928,6 +1949,7 @@ document.addEventListener('input', function (e) {
   if (ds.pd) { S.plan.days[+ds.di].n = t.value; planTouch(); return; }
   if (ds.pk) { var ex = S.plan.days[+ds.di].ex[+ds.ei]; if (ds.pk === 'sets') ex.sets = Math.max(1, parseInt(t.value) || 1); else ex.reps = t.value; planTouch(); return; }
   if (id === 'fq') { UI.fq = t.value; var l = $('#foodList'); if (l) l.innerHTML = foodListHtml(); return; }
+  if (id === 'recipeQ') { UI.recipeQ=t.value; var rm=$('#recipeMatches'); if(rm) rm.innerHTML=recipeMatchesHtml(allFoods().filter(function(f){return !UI.recipeQ.trim()||f.n.toLowerCase().indexOf(UI.recipeQ.trim().toLowerCase())>=0;}).slice(0,18)); return; }
   if (id === 'fg') { var sh = UI.sheet; if (sh && sh.type === 'food') { sh.g = num(t.value); var f = foodById(sh.fid), m = $('#fmacros'); if (f && m) m.innerHTML = foodMacrosHtml(f, sh.g); } return; }
   if (id === 'lq') { UI.lq = t.value; var l2 = $('#libList'); if (l2) l2.innerHTML = exListHtml(false); return; }
   if (id === 'pq') { UI.lq = t.value; var l3 = $('#pickList'); if (l3) l3.innerHTML = exListHtml(true); return; }
