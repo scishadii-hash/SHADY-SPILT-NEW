@@ -1255,53 +1255,115 @@ function vCalorieBot() {
   h+='</div><form class="bot-entry" id="botForm"><input id="botInput" placeholder="مثلاً: 2 بيضة و100 جم عيش بلدي" autocomplete="off"><button class="btn" type="submit">احسب</button></form><p class="muted xs">البحث أونلاين من Open Food Facts، والقيم تقريبية وقد تختلف حسب المنتج وطريقة التحضير. اتأكد من الوزن والنتيجة قبل تسجيلها.</p>';
   return h;
 }
+function botNormalize(s) {
+  return String(s||"").toLowerCase()
+    .replace(/[ًٌٍَُِّْـ]/g,"")
+    .replace(/[أإآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه")
+    .replace(/[٠-٩]/g,function(x){return "٠١٢٣٤٥٦٧٨٩".indexOf(x);})
+    .replace(/[٫،]/g,".").replace(/[^\p{L}\p{N}. ]/gu," ").replace(/\s+/g," ").trim();
+}
 function botParseFoods(input) {
-  var s=input.toLowerCase().replace(/[٠-٩]/g,function(x){return "٠١٢٣٤٥٦٧٨٩".indexOf(x);}).replace(/[٫،]/g,".").trim();
+  var s=botNormalize(input);
+  s=s.replace(/^(?:ممكن\s+)?(?:تحسب(?:لي|لنا)?|احسب(?:لي|لنا)?|عايز(?:ك)?\s+تحسبلي|السعرات\s+بتاعت|السعرات\s+في)\s*/,"")
+     .replace(/^(?:انا\s+)?(?:كلت|اكلت|أكلت|هاكل|هأكل|تناولت)\s*/,"")
+     .replace(/\b(?:سعرات|كالوري|calories|kcal)\b/g," ")
+     .trim();
+  var numberWords={"واحد":1,"واحدة":1,"وحده":1,"اتنين":2,"اثنين":2,"تنين":2,"ثلاثه":3,"ثلاث":3,"اربعه":4,"أربعة":4,"خمسه":5,"ستة":6,"سبعه":7,"ثمانيه":8,"تسعه":9,"عشره":10};
+  s=s.replace(/\b(واحده|واحدة|واحد|اتنين|اثنين|تنين|ثلاثه|ثلاث|اربعه|أربعة|خمسه|ستة|سبعه|ثمانيه|تسعه|عشره)\b/g,function(w){return numberWords[w]||w;});
   var parts=s.split(/\s+(?:و|مع)\s+|[,؛;+]/).filter(Boolean), out=[];
+  var aliases=[
+    ["بيض كامل","بيضة كاملة"],["بيضه","بيضة كاملة"],["بيضتين","بيضة كاملة"],["بيضات","بيضة كاملة"],["بيضة","بيضة كاملة"],["بيض","بيضة كاملة"],
+    ["رغيف عيش بلدي","عيش بلدي"],["رغيف بلدي","عيش بلدي"],["عيش بلدي","عيش بلدي"],["عيش","عيش بلدي"],
+    ["صدور فراخ","صدور فراخ مشوية"],["فراخ مشوية","صدور فراخ مشوية"],["فراخ","صدور فراخ مشوية"],["دجاج","صدور فراخ مشوية"],
+    ["رز ابيض","رز أبيض مطبوخ"],["ارز","رز أبيض مطبوخ"],["رز","رز أبيض مطبوخ"],
+    ["مكرونه","مكرونة مسلوقة"],["مكرونة","مكرونة مسلوقة"],
+    ["بطاطس","بطاطس مسلوقة"],["بطاطه","بطاطا مشوية"],
+    ["لبن","لبن كامل الدسم"],["حليب","لبن كامل الدسم"],["زبادي","زبادي طبيعي"],
+    ["جبنه قريش","جبنة قريش"],["جبنة قريش","جبنة قريش"],["عيش فينو","عيش فينو"],["توست","عيش توست"],
+    ["موز","موز"],["تفاح","تفاح"],["تونه","تونة بالماء"],["تونة","تونة بالماء"],
+    ["شوفان","شوفان"],["فول","فول مدمس"],["عدس","عدس مسلوق"],["طعمية","طعمية"],["زيت","زيت"]
+  ];
   parts.forEach(function(part){
-    var m=part.match(/^\s*(\d+(?:[.]\d+)?)\s*(كجم|كيلو|جم|جرام|غرام|غ|g|kg)?\s*(.*?)\s*$/i);
-    var amount=m?Number(m[1]):100, unit=m?(m[2]||""): "", name=m?m[3]:part;
+    part=part.trim(); if(!part) return;
+    var m=part.match(/^(\d+(?:\.\d+)?)\s*(كجم|كيلو|جم|جرام|غرام|غ|مل|ملي|لتر|g|kg|ml)?\s*(.*?)$/i);
+    var amount=m?Number(m[1]):1, unit=m?(m[2]||""):"", name=m?m[3].trim():part;
     if(!name) return;
-    var gram=/كجم|كيلو|kg/i.test(unit)?amount*1000:/جم|جرام|غرام|غ|^g$/i.test(unit)?amount:null;
-    var aliases={"بيض":"egg","بيضة":"egg","بيضه":"egg","بيض كامل":"egg","عيش بلدي":"Egyptian bread","فراخ":"chicken","صدور فراخ":"chicken breast","رز":"rice","أرز":"rice","موز":"banana","تفاح":"apple","لبن":"milk","زبادي":"yogurt","تونة":"tuna","بطاطس":"potato","شوفان":"oats"};
-    var key=Object.keys(aliases).sort(function(x,y){return y.length-x.length;}).filter(function(k){return name.indexOf(k)>=0;})[0];
-    if(key) name=aliases[key];
-    var count=!gram&&m?amount:null;
-    if(!gram) gram=count&&/egg|بيضة|بيض/.test(name)?count*50:count&&/banana|موز/.test(name)?count*118:count&&/apple|تفاح/.test(name)?count*180:100;
-    out.push({query:name,grams:gram,quantity:amount,unit:unit,assumed:!m||!unit});
+    var norm=botNormalize(name), canonical="", alias="";
+    for(var j=0;j<aliases.length;j++){
+      var ak=botNormalize(aliases[j][0]);
+      if(norm.indexOf(ak)>=0){alias=aliases[j][0];canonical=aliases[j][1];break;}
+    }
+    if(!canonical){
+      var foods=allFoods();
+      for(var k=0;k<foods.length;k++){
+        var fn=botNormalize(foods[k].n);
+        if(norm===fn||norm.indexOf(fn)>=0||fn.indexOf(norm)>=0){canonical=foods[k].n;break;}
+      }
+    }
+    var food=canonical?allFoods().filter(function(f){return f.n===canonical;})[0]:null;
+    var isWeight=/كجم|كيلو|kg/i.test(unit), isGram=/جم|جرام|غرام|^غ$|^g$/i.test(unit);
+    var grams=isWeight?amount*1000:isGram?amount:null;
+    if(/مل|ملي|ml/i.test(unit)) grams=amount;
+    if(grams===null){
+      var piece=food&&food.g?food.g:100;
+      if(/بيضة كاملة/.test(canonical)) piece=50;
+      if(/عيش بلدي/.test(canonical)) piece=90;
+      if(/عيش فينو/.test(canonical)) piece=70;
+      if(/عيش توست/.test(canonical)) piece=28;
+      if(/موز/.test(canonical)) piece=120;
+      if(/تفاح/.test(canonical)) piece=180;
+      if(/رغيف|بيضة|بيضتين|بيضات|حبة|قطعة|كوباية|كوب|ملعقة|معلقة|طبق|سكوب|علبة/.test(name)) grams=amount*piece;
+      else grams=amount*piece;
+    } else if(m && !unit) grams=amount*(food&&food.g?food.g:100);
+    out.push({query:canonical||name,grams:grams,quantity:amount,unit:unit,assumed:!m||!unit,localFood:food?food.n:null,unresolved:!food});
   });
   return out;
 }
 function botLocalLookup(query) {
-  var foods=allFoods(), q=query.toLowerCase();
-  var f=foods.filter(function(x){return x.n.toLowerCase().indexOf(q)>=0||q.indexOf(x.n.toLowerCase())>=0;}).sort(function(x,y){return y.n.length-x.n.length;})[0];
-  return f?{n:f.n,k:f.k,p:f.p,c:f.c,f:f.f,source:"قاعدة التطبيق"}:null;
+  var foods=allFoods(), q=botNormalize(query), best=null, score=0;
+  foods.forEach(function(x){
+    var n=botNormalize(x.n), v=0;
+    if(n===q) v=100;
+    else if(q.indexOf(n)>=0||n.indexOf(q)>=0) v=70;
+    else {
+      var words=q.split(" ").filter(function(w){return w.length>1;});
+      words.forEach(function(w){if(n.indexOf(w)>=0)v+=12;});
+    }
+    if(v>score){score=v;best=x;}
+  });
+  return best&&score>=35?{n:best.n,k:best.k,p:best.p,c:best.c,f:best.f,source:"قاعدة الأكل المصرية داخل التطبيق"}:null;
 }
 async function botSearchFood(item) {
-  var url="https://world.openfoodfacts.org/cgi/search.pl?search_terms="+encodeURIComponent(item.query)+"&search_simple=1&action=process&json=1&page_size=10&fields=product_name,nutriments";
+  /* الأكلات المصرية المعروفة تتحسب من قاعدة التطبيق أولاً؛ البحث التجاري لا يختار منتجاً غير مطابق بالاسم. */
+  var local=item.localFood?botLocalLookup(item.localFood):botLocalLookup(item.query);
+  if(local) return local;
+  var url="https://world.openfoodfacts.org/cgi/search.pl?search_terms="+encodeURIComponent(item.query)+"&search_simple=1&action=process&json=1&page_size=20&fields=product_name,nutriments";
   try {
     var response=await fetch(url,{headers:{"Accept":"application/json"}});
     if(!response.ok) throw new Error("search unavailable");
-    var data=await response.json(), products=data.products||[];
+    var data=await response.json(), products=data.products||[], q=botNormalize(item.query);
+    var words=q.split(" ").filter(function(w){return w.length>2;});
     var valid=products.map(function(p){
       var n=p.nutriments||{}, kcal=Number(n["energy-kcal_100g"]);
       if(!kcal&&Number(n.energy_100g)) kcal=Number(n.energy_100g)/4.184;
-      return {n:p.product_name||item.query,k:kcal,p:Number(n.proteins_100g)||0,c:Number(n.carbohydrates_100g)||0,f:Number(n.fat_100g)||0};
-    }).filter(function(p){return p.k>0&&p.k<1000;});
-    if(valid.length) return Object.assign(valid[0],{source:"Open Food Facts"});
+      var title=botNormalize(p.product_name||""), relevance=0;
+      words.forEach(function(w){if(title.indexOf(w)>=0) relevance+=1;});
+      return {n:p.product_name||item.query,k:kcal,p:Number(n.proteins_100g)||0,c:Number(n.carbohydrates_100g)||0,f:Number(n.fat_100g)||0,relevance:relevance};
+    }).filter(function(p){return p.k>0&&p.k<1000&&p.relevance>0;}).sort(function(a,b){return b.relevance-a.relevance;});
+    if(valid.length){delete valid[0].relevance;return Object.assign(valid[0],{source:"Open Food Facts"});}
   } catch(e) {}
-  return botLocalLookup(item.query);
+  return null;
 }
 async function botCalculate(text) {
-  var parsed=botParseFoods(text), found=[], total={g:0,k:0,p:0,c:0,f:0};
+  var parsed=botParseFoods(text), found=[], missing=[], total={g:0,k:0,p:0,c:0,f:0};
   for(var i=0;i<parsed.length;i++){
     var item=parsed[i], food=await botSearchFood(item);
-    if(!food) continue;
+    if(!food){missing.push(item.query);continue;}
     var scale=item.grams/100;
     found.push({n:food.n,g:item.grams,k:food.k*scale,p:food.p*scale,c:food.c*scale,f:food.f*scale,source:food.source,assumed:item.assumed});
   }
   found.forEach(function(x){total.g+=x.g;total.k+=x.k;total.p+=x.p;total.c+=x.c;total.f+=x.f;});
-  return found.length?{items:found,total:total}:null;
+  return {items:found,missing:missing,total:total};
 }
 async function botReply(text) {
   var msgs=UI.botMessages||(UI.botMessages=[]);
