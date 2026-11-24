@@ -1367,7 +1367,7 @@ async function botCalculate(text) {
 }
 async function botReply(text) {
   var msgs=UI.botMessages||(UI.botMessages=[]);
-  msgs.push({role:"user",text:text},{role:"bot",text:"بفهم المكونات والكميات وبحسبها…"});
+  msgs.push({role:"user",text:text},{role:"bot",text:"براجع كل صنف والكمية اللي قلتها…"});
   UI.tab="calcbot";render();scrollTop();
   var result=await botCalculate(text);
   msgs.pop();
@@ -1376,12 +1376,16 @@ async function botReply(text) {
     UI.botLast=null;
   } else {
     UI.botLast={name:text,items:result.items,total:result.total};
-    var t=result.total, sources={};
+    var t=result.total,sources={};
     result.items.forEach(function(x){sources[x.source]=true;});
-    var lines=result.items.map(function(x){return "• "+x.n+" ("+Math.round(x.g)+" جم) = "+Math.round(x.k)+" سعرة";});
-    var missing=result.missing.length?"\n\nملحوظة: ماعرفتش أحدد "+result.missing.join("، ")+"؛ دول مش محسوبين في الإجمالي.":"";
-    var assumptions=result.items.some(function(x){return x.assumed;})?"\n\nالجرامات لبعض الكميات متقدّرة على حجم الحصة المعتاد؛ لو وزنها مختلف ابعتهولي أدق.":"";
-    msgs.push({role:"bot",text:"حاضر، حسبت اللي فهمته من كلامك:\n\n"+lines.join("\n")+"\n\nالمجموع: "+Math.round(t.k)+" سعرة تقريبًا\nالبروتين "+t.p.toFixed(1)+" جم · الكارب "+t.c.toFixed(1)+" جم · الدهون "+t.f.toFixed(1)+" جم"+missing+assumptions+"\n\nاعتمدت على: "+Object.keys(sources).join(" و ")+"."});
+    var lines=result.items.map(function(x){return "• "+x.n+" — "+Math.round(x.g)+" جم: "+Math.round(x.k)+" سعرة";});
+    var estimated=result.items.filter(function(x){return x.assumed;}).map(function(x){
+      var each=x.quantity?Math.round(x.g/x.quantity):Math.round(x.g);
+      return "• "+x.n+": اعتبرت الكمية "+(x.quantity>1?x.quantity+" وحدات":"حصة واحدة")+"، بمتوسط "+each+" جم للوحدة.";
+    });
+    var assumptions=estimated.length?"\n\n**تقدير الوزن (مش وزن مؤكد):**\n"+estimated.join("\n")+"\nلو عندك الميزان، ابعت الوزن بالجرام عشان النتيجة تبقى أدق.":"";
+    var missing=result.missing.length?"\n\nماقدرتش أتعرف على: "+result.missing.join("، ")+"؛ الأصناف دي مش داخلة في الإجمالي.":"";
+    msgs.push({role:"bot",text:"تمام، فهمت إنك أكلت:\n\n"+lines.join("\n")+"\n\n**الإجمالي التقريبي: "+Math.round(t.k)+" سعرة**\nالبروتين: "+t.p.toFixed(1)+" جم\nالكارب: "+t.c.toFixed(1)+" جم\nالدهون: "+t.f.toFixed(1)+" جم"+assumptions+missing+"\n\nالقيم الغذائية لكل صنف تقديرية من "+Object.keys(sources).join(" و ")+"."});
   }
   render();scrollTop();
 }
