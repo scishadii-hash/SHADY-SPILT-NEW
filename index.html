@@ -1468,6 +1468,7 @@ function renderSheet() {
   else if (sh.type === 'exInfo') { title = (EX[sh.id] || {}).n || ''; body = exInfoHtml(sh.id); }
   else if (sh.type === 'session') { title = 'تفاصيل الجلسة'; body = sessionSheetHtml(sh.id); }
   el.innerHTML = sheetShell(title, body);
+  removeExerciseSourceCaption();
   if (sh.type === 'exInfo') {
     var exId = sh.id;
     loadExerciseGifs().then(function() {
@@ -1694,6 +1695,19 @@ function exerciseGifHtml(id) {
     (gif ? '<img src="' + esc(gif) + '" alt="عرض حركة ' + esc((EX[id]||{}).n) + '" loading="lazy" style="display:block;width:100%;max-width:300px;max-height:240px;object-fit:contain;margin:8px auto;border-radius:10px;background:#080809">' :
     '<div id="gif_' + esc(id) + '" class="muted sm" style="padding:12px 0">جاري تحميل الحركة…</div>') +
     '</div>';
+}
+// Defensive cleanup: remove legacy source attribution from exercise details,
+// including stale caption markup left by an earlier exercise-video template.
+function removeExerciseSourceCaption() {
+  var root = document.querySelector('.sheet') || document.querySelector('[role="dialog"]');
+  if (!root) return;
+  root.querySelectorAll('p,small,figcaption,div,span').forEach(function(el) {
+    if (el.children.length) return;
+    var txt = (el.textContent || '').trim();
+    if (txt.indexOf('Exercise GIFs DB') >= 0 || txt.indexOf('المصدر:') >= 0) {
+      el.remove();
+    }
+  });
 }
 function exInfoHtml(id) {
   var x = EX[id]; if (!x) return '';
