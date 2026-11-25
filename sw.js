@@ -1,5 +1,5 @@
 /* SHADY SPILT service worker: بيخلي التطبيق يشتغل بدون نت */
-var VERSION = 'shady-spilt-v2';
+var VERSION = 'shady-spilt-v3';
 var CORE = [
   './',
   './index.html',
