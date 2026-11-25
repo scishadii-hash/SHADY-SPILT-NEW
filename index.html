@@ -154,6 +154,13 @@ ul.ls li{margin-bottom:3px}
 .mu.on .fb{stroke:var(--a-fon);stroke-width:1.35;opacity:1}
 .body .ms{stroke-width:1.05}
 .body .mu.on .ms{stroke-width:1.35;filter:brightness(1.12)}
+.body .mu.part-on .ms{fill:#ffcf72!important;stroke:#fff2cc!important;stroke-width:2.2!important;filter:brightness(1.2)}
+.body .mu.part-off{opacity:.34}
+.anatomy-parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.anatomy-part{display:flex;align-items:center;gap:8px;text-align:right;white-space:normal;min-height:48px}
+.anatomy-part .rank{flex:none}
+.anatomy-part.on{border-color:var(--accent);background:var(--accent-soft)}
+@media(max-width:390px){.anatomy-parts{grid-template-columns:1fr}}
 .sh{fill:url(#shd);pointer-events:none}
 .gh .ms{fill:none;stroke:#a8660a;stroke-dasharray:3 2;opacity:.6}.gh .fb,.gh .sh{display:none}
 .groove{stroke:var(--a-mst);stroke-width:.9;fill:none;pointer-events:none}
@@ -998,7 +1005,7 @@ function anaZoom(list, id) {
   else if (ar > 1.7) { var nh = w / 1.7; miny -= (nh - h) / 2; h = nh; }
   return [fx(x0), fx(miny), fx(w), fx(h)];
 }
-function anatomySvg(view, active, zoom, sex) {
+function anatomySvg(view, active, zoom, sex, selectedHead) {
   var list = view === 'front' ? ANA_FRONT : ANA_BACK, heads = MUSCLE_HEADS[active] || [];
   var vb = (zoom && anaZoom(list, active)) || [0, 0, 300, 560];
   var deepOn = !!MUSCLE_DEEP[active], defs = '', body = '', ci = 0;
@@ -1010,9 +1017,9 @@ function anatomySvg(view, active, zoom, sex) {
     [1, -1].forEach(function (sg) {
       var d = crPath(s.pts.map(function (p) { return mpt(p, sg); }), true), id = 'cp' + (ci++);
       defs += '<clipPath id="' + id + '"><path d="' + d + '"/></clipPath>';
-      var on = s.m === active, gh = deepOn && s.cover;
-      var cls = 'mu' + (on ? ' on' : '') + (s.un ? ' un' : '') + (gh ? ' gh' : '');
-      body += '<g class="' + cls + '"' + (s.un ? '' : ' data-a="muscle" data-m="' + s.m + '"') + '><path d="' + d + '" class="ms h' + hi + '"/>';
+      var on = s.m === active, partOn = on && selectedHead && s.h === selectedHead, gh = deepOn && s.cover;
+      var cls = 'mu' + (on ? ' on' : '') + (partOn ? ' part-on' : (on && selectedHead ? ' part-off' : '')) + (s.un ? ' un' : '') + (gh ? ' gh' : '');
+      body += '<g class="' + cls + '"' + (s.un ? '' : ' data-a="anatomyPart" data-m="' + s.m + '" data-h="' + s.h + '"') + '><path d="' + d + '" class="ms h' + hi + '"/>
       if (s.fib.length) {
         body += '<g clip-path="url(#' + id + ')">';
         s.fib.forEach(function (sp) { fibPaths(sp, sg).forEach(function (p) { body += '<path d="' + p + '" class="fb"/>'; }); });
@@ -1085,7 +1092,7 @@ function waterCups() { return Math.round((num(S.profile.weight, 65) * 0.035 + 0.
 
 /* ===== الحالة ===== */
 var S = null;
-var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, anaSex: 'male', techM: 'all', techQ: '', sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [], botMessages: [] };
+var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, anaSex: 'male', anaHead: '', techM: 'all', techQ: '', sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [], botMessages: [] };
 
 function defaults() {
   var s = {
@@ -1865,12 +1872,13 @@ function listHtml(arr) { return '<ul class="ls">' + arr.map(function (x) { retur
 function vMuscle() {
   var id = UI.mus, M = MUSCLES[id], list = UI.mview === 'front' ? ANA_FRONT : ANA_BACK;
   var visible = list.some(function (s) { return s.m === id; }), heads = MUSCLE_HEADS[id] || [];
+  if (!UI.anaHead || !heads.some(function(x){return x[0]===UI.anaHead;})) UI.anaHead = heads.length ? heads[0][0] : '';
   var h = '<div class="card" style="margin-top:12px"><div class="row between"><b>اختار هيئة الجسم والاتجاه</b></div>' + chipRow([['male', 'Male · ذكر'], ['female', 'Female · أنثى']], UI.anaSex, 'anaSex') + chipRow([['front', 'من الأمام'], ['back', 'من الخلف']], UI.mview, 'mview');
-  h += '<p class="note sm">للتشريح التفصيلي الحقيقي (تحديد العضلات المفردة وطبقات الجسم)، افتح الأطلس ثلاثي الأبعاد المرجعي: <a href="https://atlas.taim.best" target="_blank" rel="noopener">Human Atlas · ذكر وأنثى</a>. خريطة التطبيق الحالية تبقى خريطة مجموعات عضلية تعليمية.</p>';
+  h += '<p class="note sm">اختار أي جزء من الرسم أو من تقسيمات العضلة أسفل الصورة؛ الجزء المختار هيتحدد بلون واضح، وأليافه تظهر فوقه مباشرة.</p>';
   h += '<div class="row rw" style="margin:2px 0 8px"><button class="btn ghost sm" data-a="mzoom">' + (UI.mzoom ? 'عرض الجسم كله' : 'تكبير على العضلة') + '</button></div>';
-  h += anatomySvg(UI.mview, id, UI.mzoom && visible, UI.anaSex);
+  h += anatomySvg(UI.mview, id, UI.mzoom && visible, UI.anaSex, UI.anaHead);
   if (!visible) h += '<p class="muted sm" style="text-align:center;margin-top:6px">العضلة دي بتبان أحسن من الجهة التانية، اضغط على "' + (UI.mview === 'front' ? 'من الخلف' : 'من الأمام') + '".</p>';
-  if (visible && heads.length) h += '<div class="legend">' + heads.map(function (x, i) { return '<span><i class="sw h' + i + '"></i>' + esc(x[1]) + '</span>'; }).join('') + '</div>';
+  if (visible && heads.length) h += '<div class="sec-t">تقسيمات العضلة على الرسم</div><div class="anatomy-parts">' + heads.map(function (x, i) { return '<button class="btn ghost anatomy-part ' + (UI.anaHead===x[0]?'on':'') + '" data-a="anatomyHead" data-h="'+esc(x[0])+'"><span class="rank">'+(i+1)+'</span><span>'+esc(x[1])+'</span></button>'; }).join('') + '</div><p class="muted xs" style="margin-top:8px">اضغط على الجزء من القائمة أو على العضلة نفسها في الرسم لتحديده.</p>';
   if (visible && FIBER_TXT[id]) h += '<p class="sm" style="margin-top:8px"><b>اتجاه الألياف:</b> ' + esc(FIBER_TXT[id]) + '</p>';
   if (MUSCLE_DEEP[id]) h += '<p class="muted sm">العضلة دي عميقة: الخطوط المنقطة هي العضلات السطحية (الترابيس والظهرية) اللي فوقها.</p>';
   h += '</div>';
@@ -1878,8 +1886,8 @@ function vMuscle() {
   h += '<h2 style="margin-top:14px">' + MUSCLE_NAMES[id] + '</h2><p class="muted sm" style="direction:ltr;text-align:right;margin-top:-6px">' + esc(M.la) + '</p>';
   h += '<div class="sec-t">أجزاء العضلة</div>' + listHtml(M.parts);
   h += '<div class="sec-t">الأصل والالتصاق</div><p><b>بتبدأ من:</b> ' + esc(M.origin) + '</p><p><b>بتنتهي عند:</b> ' + esc(M.insertion) + '</p>';
-  h += '<div class="sec-t">العضلات والتراكيب داخل المجموعة</div><section class="card" style="padding:8px 12px"><p class="muted xs">اختيار اسم هنا يحدد المجموعة المرتبطة به على الخريطة الحالية؛ الخريطة الحالية تعليمية ومبسطة وليست أطلسًا ثلاثي الأبعاد لكل عضلة منفردة.</p><ul class="ls">' + (MUSCLE_DETAIL_LIST[id] || []).map(function(n){return '<li>'+esc(n)+'</li>';}).join('') + '</ul></section>';
-  h += '<div class="sec-t">مراجع التشريح</div><p class="sm"><a href="https://openstax.org/books/anatomy-and-physiology-2e/pages/11-chapter-review" target="_blank" rel="noopener">OpenStax · تشريح العضلات ووظائفها</a></p><p class="sm"><a href="https://github.com/slorksmo/Human-Atlas" target="_blank" rel="noopener">Human Atlas · أطلس مرجعي ذكر/أنثى</a></p>';
+  h += '<div class="sec-t">كل عضلات المجموعة</div><section class="card" style="padding:8px 12px"><ul class="ls">' + (MUSCLE_DETAIL_LIST[id] || []).map(function(n){return '<li>'+esc(n)+'</li>';}).join('') + '</ul></section>';
+  h += '<div class="sec-t">مرجع علمي</div><p class="sm"><a href="https://openstax.org/books/anatomy-and-physiology-2e/pages/11-chapter-review" target="_blank" rel="noopener">OpenStax · تشريح العضلات ووظائفها</a></p>';
   h += '<div class="sec-t">وظيفتها</div><p>' + esc(M.action) + '</p>';
   h += '<div class="sec-t">إزاي بتشتغل</div><p>' + esc(M.how) + '</p>';
   h += '<div class="sec-t">أفضل التمارين بالترتيب</div><section class="card" style="padding-block:4px">';
@@ -2164,10 +2172,12 @@ var ACT = {
   },
 
   /* عضلات */
-  muscle: function (t) { UI.mus = t.dataset.m; render(); },
-  muscleChip: function (t) { UI.mus = t.dataset.v; UI.mview = MUSCLES[UI.mus].view; render(); },
+  muscle: function (t) { UI.mus = t.dataset.m; UI.anaHead = t.dataset.h || ''; render(); },
+  anatomyPart: function (t) { UI.mus = t.dataset.m; UI.anaHead = t.dataset.h || ''; render(); },
+  anatomyHead: function (t) { UI.anaHead = t.dataset.h || ''; render(); },
+  muscleChip: function (t) { UI.mus = t.dataset.v; UI.mview = MUSCLES[UI.mus].view; UI.anaHead = ''; render(); },
   mzoom: function () { UI.mzoom = !UI.mzoom; render(); },
-  mview: function (t) { UI.mview = t.dataset.v; render(); },
+  mview: function (t) { UI.mview = t.dataset.v; UI.anaHead = ''; render(); },
   anaSex: function (t) { UI.anaSex = t.dataset.v === 'female' ? 'female' : 'male'; UI.mzoom = false; render(); },
   techM: function (t) { UI.techM = t.dataset.v; render(); },
   gotoMuscle: function (t) { UI.mus = t.dataset.m; UI.mview = MUSCLES[UI.mus].view; UI.tab = 'muscle'; UI.sheet = null; render(); scrollTop(); },
