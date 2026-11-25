@@ -886,9 +886,9 @@ var ANA_FRONT = [
   SH('obliques', 'eo', [[22, 172], [34, 162], [46, 160], [50, 172], [46, 196], [42, 218], [38, 232], [30, 238], [24, 234], [20, 210], [20, 186]],
     [F.lerp([[46, 162], [50, 174], [46, 198], [42, 220]], [[24, 176], [22, 196], [22, 216], [28, 236]], 9, [0, 0])]),
   /* الصدر */
-  SH('chest', 'clav', [[4, 104], [10, 99], [30, 101], [50, 104], [60, 112], [66, 124], [46, 124], [24, 116], [8, 110]], [F.fan([[8, 100], [50, 104]], [66, 123], 8, 0.08)]),
-  SH('chest', 'ster', [[3, 114], [8, 110], [24, 116], [46, 124], [66, 124], [63, 134], [52, 146], [38, 152], [22, 152], [8, 150], [3, 146]], [F.fan([[3, 114], [3, 146]], [66, 126], 9, 0.06)]),
-  SH('chest', 'abd', [[3, 148], [8, 150], [22, 152], [38, 152], [52, 146], [63, 134], [58, 146], [50, 157], [36, 165], [20, 168], [6, 168], [3, 162]], [F.fan([[3, 164], [24, 167], [44, 158]], [63, 133], 6, -0.08)]),
+  SH('chest', 'clav', [[4, 104], [10, 99], [30, 101], [50, 104], [56, 112], [58, 122], [46, 124], [24, 116], [8, 110]], [F.fan([[8, 100], [50, 104]], [66, 123], 8, 0.08)]),
+  SH('chest', 'ster', [[3, 114], [8, 110], [24, 116], [46, 124], [58, 122], [58, 134], [52, 146], [38, 152], [22, 152], [8, 150], [3, 146]], [F.fan([[3, 114], [3, 146]], [66, 126], 9, 0.06)]),
+  SH('chest', 'abd', [[3, 148], [8, 150], [22, 152], [38, 152], [52, 146], [58, 134], [56, 146], [50, 157], [36, 165], [20, 168], [6, 168], [3, 162]], [F.fan([[3, 164], [24, 167], [44, 158]], [63, 133], 6, -0.08)]),
   /* الترابيس العلوي من الأمام */
   SH('traps', 'up', [[12, 72], [16, 90], [32, 97], [56, 101], [66, 104], [52, 92], [34, 84], [20, 76]], [F.lerp([[12, 72], [15, 88]], [[34, 86], [60, 102]], 6, [2, 2])]),
   /* الكتف */
@@ -1468,6 +1468,14 @@ function renderSheet() {
   else if (sh.type === 'exInfo') { title = (EX[sh.id] || {}).n || ''; body = exInfoHtml(sh.id); }
   else if (sh.type === 'session') { title = 'تفاصيل الجلسة'; body = sessionSheetHtml(sh.id); }
   el.innerHTML = sheetShell(title, body);
+  if (sh.type === 'exInfo') {
+    var exId = sh.id;
+    loadExerciseGifs().then(function() {
+      if (!UI.sheet || UI.sheet.type !== 'exInfo' || UI.sheet.id !== exId) return;
+      var gif = getExerciseGif(exId), slot = $('#gif_' + exId);
+      if (slot) slot.innerHTML = gif ? '<img src="' + esc(gif) + '" alt="عرض حركة ' + esc((EX[exId]||{}).n) + '" loading="lazy" style="display:block;width:100%;max-width:300px;max-height:240px;object-fit:contain;margin:8px auto;border-radius:10px;background:#080809">' : 'مش لاقيين حركة مطابقة للتمرين ده في المكتبة حاليًا.';
+    });
+  }
 }
 /* ===== أيقونات صغيرة ===== */
 function ic(p) { return '<svg viewBox="0 0 24 24" width="18" height="18" style="stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">' + p + '</svg>'; }
@@ -1644,12 +1652,56 @@ function exFilters(qid) {
 }
 function vLib() { return '<div style="margin-top:6px">' + exFilters('lq') + '<div id="libList">' + exListHtml(false) + '</div></div>'; }
 function exPickerHtml() { return exFilters('pq') + '<div id="pickList">' + exListHtml(true) + '</div>'; }
+/* ===== فيديو/أنيميشن تكنيك التمرين من مكتبة مفتوحة =====
+   GIFs مرئية قصيرة، تُحمّل عند فتح تفاصيل التمرين فقط. */
+var EX_GIF_CATALOG = null, EX_GIF_LOADING = null;
+function normExName(v) {
+  return String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function getExerciseGif(id) {
+  if (!EX_GIF_CATALOG) return '';
+  var x = EX[id], key = normExName(x && x.en);
+  if (!key) return '';
+  var exact = EX_GIF_CATALOG[key];
+  if (exact) return exact;
+  var words = key.split(' ').filter(function(w){ return w.length > 2 && !/^(with|and|the|for|one|arm)$/.test(w); });
+  var best = '', score = 0;
+  Object.keys(EX_GIF_CATALOG).forEach(function(k) {
+    var hit = words.filter(function(w){ return k.indexOf(w) >= 0; }).length;
+    if (hit > score && hit >= Math.min(3, words.length)) { score = hit; best = EX_GIF_CATALOG[k]; }
+  });
+  return best;
+}
+function loadExerciseGifs() {
+  if (EX_GIF_CATALOG || EX_GIF_LOADING) return EX_GIF_LOADING;
+  EX_GIF_LOADING = fetch('https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@main/api/en/exercises.json')
+    .then(function(r){ if(!r.ok) throw new Error('GIF library unavailable'); return r.json(); })
+    .then(function(data) {
+      var arr = Array.isArray(data) ? data : (data.exercises || data.data || []);
+      EX_GIF_CATALOG = {};
+      arr.forEach(function(item) {
+        var name = normExName(item.title || item.name || item.exercise);
+        var url = item.gif_url || item.gifUrl || item.video || '';
+        if (name && /^https?:\\/\\//i.test(url)) EX_GIF_CATALOG[name] = url;
+      });
+      return EX_GIF_CATALOG;
+    }).catch(function(){ EX_GIF_CATALOG = {}; return EX_GIF_CATALOG; });
+  return EX_GIF_LOADING;
+}
+function exerciseGifHtml(id) {
+  var gif = getExerciseGif(id);
+  return '<div class="card" style="margin-top:12px"><h3>فيديو التكنيك</h3>' +
+    (gif ? '<img src="' + esc(gif) + '" alt="عرض حركة ' + esc((EX[id]||{}).n) + '" loading="lazy" style="display:block;width:100%;max-width:300px;max-height:240px;object-fit:contain;margin:8px auto;border-radius:10px;background:#080809">' :
+    '<div id="gif_' + esc(id) + '" class="muted sm" style="padding:12px 0">جاري تحميل الحركة…</div>') +
+    '<p class="muted xs">عرض متحرك للتكنيك · المصدر: Exercise GIFs DB</p></div>';
+}
 function exInfoHtml(id) {
   var x = EX[id]; if (!x) return '';
   var lp = lastPerf(id), b = bestE1(id);
   var h = '<div class="card"><p class="muted sm" style="direction:ltr;text-align:right">' + esc(x.en) + '</p>';
   h += '<div class="chips fw" style="margin-bottom:8px"><span class="tag acc">' + esc(MUSCLE_NAMES[x.m]) + '</span>' + x.sec.map(function (m) { return '<span class="tag">' + esc(MUSCLE_NAMES[m]) + '</span>'; }).join('') + '<span class="tag">' + esc(EQUIP[x.eq]) + '</span></div>';
   h += '<p><b>نصيحة التنفيذ:</b> ' + esc(x.cue) + '</p>';
+  h += exerciseGifHtml(id);
   if (lp) h += '<p class="sm muted">آخر مرة (' + dLabel(lp.d) + '): ' + lp.sets.map(function (s) { return s.w + '×' + s.r; }).join('، ') + '<br>أفضل 1RM تقديري: ' + r1(b) + ' كجم</p>';
   else h += '<p class="sm muted">لسه ما اتسجلش التمرين ده.</p>';
   h += '<button class="btn ghost sm" data-a="gotoMuscle" data-m="' + x.m + '">اعرف أكتر عن العضلة</button></div>';
