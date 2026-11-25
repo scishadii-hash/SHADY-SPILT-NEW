@@ -137,7 +137,7 @@
         });
         var out = best ? { status: 'ok', food: { id: 'off:' + key, grp: 'off:' + key, ck: '', name: best.name, names: best.name, k: best.k, p: best.p, c: best.c, f: best.f, units: { 'حصة': 100 }, du: 'حصة', def: true, ap: true, src: 'Open Food Facts' } } : { status: 'none' };
         cache[key] = out; return out;
-      } catch (e) { return { status: 'offline' }; }
+      } catch (e) { return { status: (root.navigator && root.navigator.onLine === false) ? 'offline' : 'error', error: e && e.message ? e.message : 'request_failed' }; }
       finally { if (to) clearTimeout(to); }
     }
     root.__ssLookup = lookupOnline;
