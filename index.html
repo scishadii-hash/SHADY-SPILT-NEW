@@ -1810,7 +1810,7 @@ function vVol() {
 /* ===== مكتبة شرح التمارين ===== */
 function techListHtml() {
   var q = (UI.techQ || '').trim().toLowerCase(), m = UI.techM;
-  var list = EX_LIST.filter(function (x) { return (m === 'all' || x.m === m || x.sec.indexOf(m) >= 0) && (!q || x.n.toLowerCase().indexOf(q) >= 0 || x.en.toLowerCase().indexOf(q) >= 0 || MUSCLE_NAMES[x.m].toLowerCase().indexOf(q) >= 0); }).slice(0, 35);
+  var list = EX_LIST.filter(function (x) { return (m === 'all' || x.m === m) && (!q || x.n.toLowerCase().indexOf(q) >= 0 || x.en.toLowerCase().indexOf(q) >= 0 || MUSCLE_NAMES[x.m].toLowerCase().indexOf(q) >= 0); }).slice(0, 35);
   if (!list.length) return '<p class="muted">مش لاقي تمرين مطابق. جرّب اسم عربي أو English.</p>';
   return list.map(function (x) { return '<button class="list-row" data-a="exInfo" data-id="' + x.id + '"><div class="grow"><b>' + esc(x.n) + '</b><div class="muted xs" style="direction:ltr;text-align:right">' + esc(x.en) + '</div><div class="muted sm" style="margin-top:4px"><b>العضلة:</b> ' + esc(MUSCLE_NAMES[x.m]) + ' · <b>الأداة:</b> ' + esc(EQUIP[x.eq]) + '</div><div class="note sm" style="margin-top:6px">' + esc(x.cue) + '</div></div><span class="tag">شرح</span></button>'; }).join('');
 }
