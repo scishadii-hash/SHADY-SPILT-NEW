@@ -29,6 +29,9 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: .
+      # Pages artifact metadata can briefly lag after upload; allow it to become visible before deployment.
+      - name: Wait for Pages artifact metadata
+        run: sleep 15
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
