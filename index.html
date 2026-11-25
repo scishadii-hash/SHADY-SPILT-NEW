@@ -1019,7 +1019,7 @@ function anatomySvg(view, active, zoom, sex, selectedHead) {
       defs += '<clipPath id="' + id + '"><path d="' + d + '"/></clipPath>';
       var on = s.m === active, partOn = on && selectedHead && s.h === selectedHead, gh = deepOn && s.cover;
       var cls = 'mu' + (on ? ' on' : '') + (partOn ? ' part-on' : (on && selectedHead ? ' part-off' : '')) + (s.un ? ' un' : '') + (gh ? ' gh' : '');
-      body += '<g class="' + cls + '"' + (s.un ? '' : ' data-a="anatomyPart" data-m="' + s.m + '" data-h="' + s.h + '"') + '><path d="' + d + '" class="ms h' + hi + '"/>
+      body += '<g class="' + cls + '"' + (s.un ? '' : ' data-a="anatomyPart" data-m="' + s.m + '" data-h="' + s.h + '"') + '><path d="' + d + '" class="ms h' + hi + '"/>';
       if (s.fib.length) {
         body += '<g clip-path="url(#' + id + ')">';
         s.fib.forEach(function (sp) { fibPaths(sp, sg).forEach(function (p) { body += '<path d="' + p + '" class="fb"/>'; }); });
