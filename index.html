@@ -1863,6 +1863,7 @@ function vMuscle() {
   var id = UI.mus, M = MUSCLES[id], list = UI.mview === 'front' ? ANA_FRONT : ANA_BACK;
   var visible = list.some(function (s) { return s.m === id; }), heads = MUSCLE_HEADS[id] || [];
   var h = '<div class="card" style="margin-top:12px"><div class="row between"><b>اختار هيئة الجسم والاتجاه</b></div>' + chipRow([['male', 'Male · ذكر'], ['female', 'Female · أنثى']], UI.anaSex, 'anaSex') + chipRow([['front', 'من الأمام'], ['back', 'من الخلف']], UI.mview, 'mview');
+  h += '<p class="note sm">للتشريح التفصيلي الحقيقي (تحديد العضلات المفردة وطبقات الجسم)، افتح الأطلس ثلاثي الأبعاد المرجعي: <a href="https://atlas.taim.best" target="_blank" rel="noopener">Human Atlas · ذكر وأنثى</a>. خريطة التطبيق الحالية تبقى خريطة مجموعات عضلية تعليمية.</p>';
   h += '<div class="row rw" style="margin:2px 0 8px"><button class="btn ghost sm" data-a="mzoom">' + (UI.mzoom ? 'عرض الجسم كله' : 'تكبير على العضلة') + '</button></div>';
   h += anatomySvg(UI.mview, id, UI.mzoom && visible, UI.anaSex);
   if (!visible) h += '<p class="muted sm" style="text-align:center;margin-top:6px">العضلة دي بتبان أحسن من الجهة التانية، اضغط على "' + (UI.mview === 'front' ? 'من الخلف' : 'من الأمام') + '".</p>';
