@@ -102,7 +102,7 @@
       var on = await B.lookupOnline(phrase);
       if (on.status === 'ok') { it.food = on.food; it.status = 'ok'; return; }
       it.status = 'ask'; it.label = phrase;
-      var why = on.status === 'offline' ? 'جهازك ظاهر إنه من غير اتصال بالإنترنت' : (on.status === 'error' ? 'الاتصال بمصدر البحث الخارجي فشل، رغم إن ده مش معناه إن نت موبايلك فاصل' : (on.status === 'none' ? 'بحثت أونلاين ومفيش بيانات مطابقة بالاسم' : ''));
+      var why = on.status === 'offline' ? 'والنت مش واصل دلوقتي فمقدرتش أدوّر أونلاين' : (on.status === 'none' ? 'وبحثت أونلاين ومفيش بيانات مطابقة بالاسم' : '');
       st.queue.push({ type: 'unknown', id: it.id, phrase: phrase, msg: 'مش لاقي «' + phrase + '» في قاعدتي' + (why ? '، ' + why : '') + '.\nاكتبلي قيمته لكل 100 جم كده: «150 سعرة 10 بروتين 20 كارب 5 دهون»، أو قولي اسم أكلة قريبة، أو اكتب «سيبه» وأشيله من الحساب.' });
     }
     async function ingest(items) {
@@ -310,7 +310,7 @@
       }
       if (p.type === 'suggest') {
         if (R.yes.test(n)) { it.food = p.entry; it.status = 'ok'; it.unk = []; B.applyCook(it); return fin('تمام، حسبتها ' + p.entry.name + ':'); }
-        if (R.no.test(n)) { st.queue.shift(); st.pending = null; var on = await B.lookupOnline(p.phrase); if (on.status === 'ok') { it.food = on.food; it.status = 'ok'; compute(it); return showCard('لقيته أونلاين:', [it.id]); } st.queue.unshift({ type: 'unknown', id: it.id, phrase: p.phrase, msg: 'ماشي. مش لاقي «' + p.phrase + '» عندي' + (on.status === 'offline' ? ' والجهاز ظاهر أوفلاين' : (on.status === 'error' ? ' لكن الاتصال بمصدر البحث فشل، مش بالضرورة النت عندك' : '')) + '.\nاكتبلي قيمته لكل 100 جم كده: «150 سعرة 10 بروتين 20 كارب 5 دهون»، أو اكتب «سيبه».' }); return showCard('تمام:', []); }
+        if (R.no.test(n)) { st.queue.shift(); st.pending = null; var on = await B.lookupOnline(p.phrase); if (on.status === 'ok') { it.food = on.food; it.status = 'ok'; compute(it); return showCard('لقيته أونلاين:', [it.id]); } st.queue.unshift({ type: 'unknown', id: it.id, phrase: p.phrase, msg: 'ماشي. مش لاقي «' + p.phrase + '» عندي' + (on.status === 'offline' ? ' والنت مش واصل' : '') + '.\nاكتبلي قيمته لكل 100 جم كده: «150 سعرة 10 بروتين 20 كارب 5 دهون»، أو اكتب «سيبه».' }); return showCard('تمام:', []); }
         st.queue.shift(); st.pending = null; return null;
       }
       if (p.type === 'unknown') {
