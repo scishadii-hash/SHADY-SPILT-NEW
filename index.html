@@ -149,8 +149,11 @@ ul.ls li{margin-bottom:3px}
 .mu{cursor:pointer}.mu.un{cursor:default}
 .mu.on .ms.h0{fill:var(--a-h0)}.mu.on .ms.h1{fill:var(--a-h1)}.mu.on .ms.h2{fill:var(--a-h2)}.mu.on .ms.h3{fill:var(--a-h3)}
 .un .ms{fill:var(--a-un)}
-.fb{fill:none;stroke:var(--a-fb);stroke-width:.55;stroke-linecap:round;pointer-events:none}
-.mu.on .fb{stroke:var(--a-fon);stroke-width:.7;opacity:.85}
+/* خطوط الألياف: إبراز كل حزمة داخل حدود العضلة بدل خطوط باهتة */
+.fb{fill:none;stroke:var(--a-fb);stroke-width:1.05;stroke-linecap:round;stroke-linejoin:round;opacity:.92;pointer-events:none}
+.mu.on .fb{stroke:var(--a-fon);stroke-width:1.35;opacity:1}
+.body .ms{stroke-width:1.05}
+.body .mu.on .ms{stroke-width:1.35;filter:brightness(1.12)}
 .sh{fill:url(#shd);pointer-events:none}
 .gh .ms{fill:none;stroke:#a8660a;stroke-dasharray:3 2;opacity:.6}.gh .fb,.gh .sh{display:none}
 .groove{stroke:var(--a-mst);stroke-width:.9;fill:none;pointer-events:none}
