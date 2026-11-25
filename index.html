@@ -143,7 +143,7 @@ ul.ls li{margin-bottom:3px}
 .srow.done input{opacity:.65}
 .pr{color:var(--accent);font-weight:700;font-size:12px}
 .body{width:100%;max-width:420px;height:auto;display:block;margin-inline:auto;touch-action:manipulation}
-.body.female{transform:scaleX(.92);transform-origin:50% 50%}
+.body.female{transform:none;transform-origin:50% 50%}.body.female .bb{fill:#30272d;stroke:#a98798}.body.female .ms{stroke:#b77b87}.body.female .fb{stroke:#c49aa5}
 .bb{fill:var(--a-sk);stroke:var(--a-skl);stroke-width:.8}
 .ms{fill:var(--a-ms);stroke:var(--a-mst);stroke-width:.7;stroke-linejoin:round}
 .mu{cursor:pointer}.mu.un{cursor:default}
@@ -823,12 +823,19 @@ function fibPaths(sp, sg) {
 /* ===== الجسم الأساسي ===== */
 var SIL = [[0, 64], [12, 66], [13, 84], [15, 92], [32, 97], [54, 100], [66, 103], [60, 113], [57, 128], [52, 150], [47, 172], [42, 196], [38, 216], [40, 236], [46, 256], [49, 276], [50, 300], [49, 330], [46, 362], [43, 392], [44, 420], [44, 450], [42, 480], [37, 512], [35, 530], [37, 544], [30, 549], [12, 549], [12, 540], [13, 528], [15, 498], [17, 460], [18, 430], [14, 410], [11, 394], [9, 364], [8, 330], [6, 300], [3, 284], [0, 278]];
 var ARM = [[66, 103], [76, 102], [86, 110], [88, 126], [86, 150], [85, 176], [89, 200], [93, 224], [97, 250], [98, 274], [101, 292], [103, 318], [99, 336], [90, 338], [88, 316], [86, 294], [84, 276], [80, 248], [74, 222], [68, 202], [66, 176], [65, 150], [62, 128], [60, 112]];
-function silPathFull() {
-  var pts = SIL.map(function (p) { return mpt(p, 1); });
-  var left = SIL.slice(1, SIL.length - 1).reverse().map(function (p) { return mpt(p, -1); });
-  return crPath(pts.concat(left), true);
+function silPathFull(sex) {
+  /* Distinct contour for the female reference: narrower shoulder/waist and wider pelvis.
+     The interactive overlays remain a regional educational diagram, not individual 3D meshes. */
+  function reshape(p) { var y=p[1], f=y<125?.88:y<175?.94:y<245?.78:y<315?1.18:y<410?1.08:1.02; return [p[0]*f,y]; }
+  var src=sex==='female'?SIL.map(reshape):SIL;
+  var pts=src.map(function(p){return mpt(p,1);});
+  var left=src.slice(1,src.length-1).reverse().map(function(p){return mpt(p,-1);});
+  return crPath(pts.concat(left),true);
 }
-function armPath(sg) { return crPath(ARM.map(function (p) { return mpt(p, sg); }), true); }
+function armPath(sg,sex) {
+  var src=sex==='female'?ARM.map(function(p){return [p[0]*.91,p[1]];}):ARM;
+  return crPath(src.map(function(p){return mpt(p,sg);}),true);
+}
 
 /* ===== معلومات الرؤوس والألياف ===== */
 var MUSCLE_HEADS = {
@@ -848,6 +855,24 @@ var MUSCLE_HEADS = {
   glutes: [['gmax', 'الإلية الكبرى'], ['gmed', 'الإلية الوسطى']],
   adductors: [['pec', 'البكتينيوس'], ['long', 'المقربة الطويلة'], ['grac', 'الرقيقة (Gracilis)']],
   calves: [['gm', 'التوأمية (الرأس الإنسي)'], ['gl', 'التوأمية (الرأس الوحشي)'], ['sol', 'النعلية']]
+};
+var MUSCLE_DETAIL_LIST = {
+ chest:['Pectoralis major — الصدرية الكبرى','Pectoralis minor — الصدرية الصغرى'],
+ dfront:['Deltoid (anterior fibers) — الدالية الأمامية'],dside:['Deltoid (middle fibers) — الدالية الوسطى'],drear:['Deltoid (posterior fibers) — الدالية الخلفية'],
+ traps:['Trapezius — شبه المنحرفة (الترابيس)'],
+ lats:['Latissimus dorsi — الظهرية العريضة','Teres major — المدورة الكبرى'],
+ midback:['Rhomboid major — المعينية الكبرى','Rhomboid minor — المعينية الصغرى','Teres minor — المدورة الصغرى','Infraspinatus — تحت الشوكة'],
+ lowback:['Iliocostalis — الحرقفية الضلعية','Longissimus — الأطول','Spinalis — الشوكية'],
+ biceps:['Biceps brachii (long head) — ذات الرأسين الطويل','Biceps brachii (short head) — ذات الرأسين القصير','Brachialis — العضدية'],
+ triceps:['Triceps brachii (long head) — ثلاثية الرؤوس الطويل','Triceps brachii (lateral head) — الوحشي','Triceps brachii (medial head) — الإنسي'],
+ forearms:['Brachioradialis — العضدية الكعبرية','Wrist/finger flexor group — مثنيات الرسغ والأصابع','Wrist/finger extensor group — باسطات الرسغ والأصابع'],
+ abs:['Rectus abdominis — المستقيمة البطنية','Transversus abdominis — المستعرضة البطنية'],
+ obliques:['External oblique — المائلة الخارجية','Internal oblique — المائلة الداخلية'],
+ quads:['Rectus femoris — المستقيمة الفخذية','Vastus lateralis — المتسعة الوحشية','Vastus medialis — المتسعة الإنسية','Vastus intermedius — المتسعة الوسطى'],
+ hams:['Biceps femoris — ذات الرأسين الفخذية','Semitendinosus — نصف الوترية','Semimembranosus — نصف الغشائية'],
+ glutes:['Gluteus maximus — الألوية الكبرى','Gluteus medius — الألوية الوسطى','Gluteus minimus — الألوية الصغرى'],
+ adductors:['Adductor longus — المقربة الطويلة','Adductor brevis — المقربة القصيرة','Adductor magnus — المقربة الكبرى','Gracilis — الرشيقة','Pectineus — المشطية'],
+ calves:['Gastrocnemius — التوأمية','Soleus — النعلية','Plantaris — الأخمصية','Tibialis anterior — الظنبوبية الأمامية']
 };
 var FIBER_TXT = {
   chest: 'الألياف على شكل مروحة: الترقوية بتنزل بميل للخارج، والقصية أفقية تقريبًا، والبطنية بتطلع لفوق. كلها بتتجمع في وتر واحد على عظمة العضد.',
@@ -976,7 +1001,7 @@ function anatomySvg(view, active, zoom, sex) {
   var deepOn = !!MUSCLE_DEEP[active], defs = '', body = '', ci = 0;
   var h = '<svg viewBox="' + vb.join(' ') + '" class="body ' + (sex === 'female' ? 'female' : 'male') + '" role="img" aria-label="' + (sex === 'female' ? 'جسم أنثى تشريحي ' : 'جسم ذكر تشريحي ') + (view === 'front' ? 'من الأمام' : 'من الخلف') + '">';
   defs += '<radialGradient id="shd" cx="0.5" cy="0.4" r="0.75"><stop offset="0" stop-color="#fff" stop-opacity="0.26"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.3"/></radialGradient>';
-  body += '<ellipse cx="150" cy="42" rx="21" ry="30" class="bb"/><path d="' + silPathFull() + '" class="bb"/><path d="' + armPath(1) + '" class="bb"/><path d="' + armPath(-1) + '" class="bb"/>';
+  body += '<ellipse cx="150" cy="42" rx="21" ry="30" class="bb"/><path d="' + silPathFull(sex) + '" class="bb"/><path d="' + armPath(1, sex) + '" class="bb"/><path d="' + armPath(-1, sex) + '" class="bb"/>';
   list.forEach(function (s) {
     var hi = 0; heads.forEach(function (x, i) { if (x[0] === s.h) hi = i; });
     [1, -1].forEach(function (sg) {
@@ -1849,6 +1874,8 @@ function vMuscle() {
   h += '<h2 style="margin-top:14px">' + MUSCLE_NAMES[id] + '</h2><p class="muted sm" style="direction:ltr;text-align:right;margin-top:-6px">' + esc(M.la) + '</p>';
   h += '<div class="sec-t">أجزاء العضلة</div>' + listHtml(M.parts);
   h += '<div class="sec-t">الأصل والالتصاق</div><p><b>بتبدأ من:</b> ' + esc(M.origin) + '</p><p><b>بتنتهي عند:</b> ' + esc(M.insertion) + '</p>';
+  h += '<div class="sec-t">العضلات والتراكيب داخل المجموعة</div><section class="card" style="padding:8px 12px"><p class="muted xs">اختيار اسم هنا يحدد المجموعة المرتبطة به على الخريطة الحالية؛ الخريطة الحالية تعليمية ومبسطة وليست أطلسًا ثلاثي الأبعاد لكل عضلة منفردة.</p><ul class="ls">' + (MUSCLE_DETAIL_LIST[id] || []).map(function(n){return '<li>'+esc(n)+'</li>';}).join('') + '</ul></section>';
+  h += '<div class="sec-t">مراجع التشريح</div><p class="sm"><a href="https://openstax.org/books/anatomy-and-physiology-2e/pages/11-chapter-review" target="_blank" rel="noopener">OpenStax · تشريح العضلات ووظائفها</a></p><p class="sm"><a href="https://github.com/slorksmo/Human-Atlas" target="_blank" rel="noopener">Human Atlas · أطلس مرجعي ذكر/أنثى</a></p>';
   h += '<div class="sec-t">وظيفتها</div><p>' + esc(M.action) + '</p>';
   h += '<div class="sec-t">إزاي بتشتغل</div><p>' + esc(M.how) + '</p>';
   h += '<div class="sec-t">أفضل التمارين بالترتيب</div><section class="card" style="padding-block:4px">';
