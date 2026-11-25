@@ -1682,7 +1682,7 @@ function loadExerciseGifs() {
       arr.forEach(function(item) {
         var name = normExName(item.name || item.title || item.exercise);
         var url = item.gifUrl || item.gif_url || item.video || '';
-        if (name && /^https?:\\/\\//i.test(url)) EX_GIF_CATALOG[name] = url;
+        if (name && /^https?:\/\//i.test(url)) EX_GIF_CATALOG[name] = url;
       });
       return EX_GIF_CATALOG;
     }).catch(function(){ EX_GIF_CATALOG = {}; return EX_GIF_CATALOG; });
