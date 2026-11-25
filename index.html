@@ -1717,7 +1717,7 @@ function exInfoHtml(id) {
   h += '<p><b>نصيحة التنفيذ:</b> ' + esc(x.cue) + '</p>';
   h += exerciseGifHtml(id);
   if (lp) h += '<p class="sm muted">آخر مرة (' + dLabel(lp.d) + '): ' + lp.sets.map(function (s) { return s.w + '×' + s.r; }).join('، ') + '<br>أفضل 1RM تقديري: ' + r1(b) + ' كجم</p>';
-  else h += '<p class="sm muted">لسه ما اتسجلش التمرين ده.</p>';
+  // No empty workout-history message when this exercise has not been logged yet.
   h += '<button class="btn ghost sm" data-a="gotoMuscle" data-m="' + x.m + '">اعرف أكتر عن العضلة</button></div>';
   if (S.plan.days.length) {
     h += '<div class="card" style="margin-top:12px"><h3>ضيفه للخطة</h3><div class="row"><select id="addToDay" aria-label="اليوم">' + S.plan.days.map(function (d, i) { return '<option value="' + i + '">' + esc(d.n) + '</option>'; }).join('') + '</select><button class="btn" data-a="addExPlan" data-id="' + id + '">ضيف</button></div></div>';
