@@ -98,7 +98,25 @@ ul.ls li{margin-bottom:3px}
 .tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px 7px;background:none;border:0;color:var(--muted);font-size:11.5px;cursor:pointer;min-height:56px}
 .tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
 .tabs button.on{color:var(--accent);font-weight:600}
-.bot-chat{display:flex;flex-direction:column;gap:10px}.bot-msg{max-width:92%;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);white-space:pre-line}.bot-msg.user{align-self:flex-start;background:var(--accent-soft);border-color:#5b171b}.bot-msg.bot{align-self:flex-end}.bot-entry{display:flex;gap:8px;position:sticky;bottom:68px;background:var(--bg);padding:8px 0}.bot-entry input{flex:1;min-width:0}.bot-entry button{white-space:nowrap}
+.bchat{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.bmsg{max-width:94%;padding:11px 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface2);white-space:pre-line;line-height:1.7;overflow-wrap:anywhere}
+.bmsg.user{align-self:flex-start;background:var(--accent-soft);border-color:#5b171b;border-end-start-radius:4px}
+.bmsg.bot{align-self:flex-end;border-end-end-radius:4px}
+.bmsg .bchips{margin-top:8px;white-space:normal}
+.bmsg.typing{display:flex;gap:5px;align-items:center;padding:14px 16px}
+.bmsg.typing span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bdot 1s infinite ease-in-out}
+.bmsg.typing span:nth-child(2){animation-delay:.15s}.bmsg.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bdot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+.bpanel{margin-top:4px}
+.bcrow{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.bcrow.bad{opacity:.85}.bcrow.bad .bcn b{color:var(--warn)}
+.bcn{min-width:0;display:flex;flex-direction:column}.bcn b{font-weight:600;overflow-wrap:anywhere}
+.bcg{display:flex;align-items:center;gap:4px}.bcg input{width:64px;padding:6px 4px;text-align:center;font-size:15px}
+.bcx{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface2);cursor:pointer;color:var(--muted)}
+.bctot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-top:10px}
+.bpills{display:flex;gap:6px;flex-wrap:wrap}.bp{font-size:12.5px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface2)}
+.bp.p{color:var(--p)}.bp.c{color:var(--c)}.bp.f{color:var(--f)}
+.bot-entry{display:flex;gap:8px;position:sticky;bottom:calc(66px + env(safe-area-inset-bottom,0px));background:var(--bg);padding:8px 0;z-index:5}.bot-entry input{flex:1;min-width:0}.bot-entry button{white-space:nowrap}
 .list-row{display:flex;width:100%;text-align:right;gap:10px;align-items:center;padding:11px 0;border:0;border-bottom:1px solid var(--line);background:none;cursor:pointer}
 .list-row:last-child{border-bottom:0}
 .list-row .grow b{font-weight:600}
@@ -220,6 +238,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#ff2530;box-sh
   <div id="sheet"></div>
   <div id="toast" class="toast" hidden></div>
 </div>
+<script src="bot/foods-eg.js"></script>
+<script src="bot/engine.js"></script>
+<script src="bot/bot.js"></script>
+<script src="bot/brain.js"></script>
 <script>
 /* ===== قاعدة الأكل: القيم لكل 100 جرام (أو 100 مل) تقريبية ===== */
 var FOOD_CATS = { carb: 'نشويات', legume: 'بقوليات', protein: 'بروتين', dairy: 'ألبان', fat: 'دهون ومكسرات', fruit: 'فاكهة وسكريات', veg: 'خضار', snack: 'سناكس ومشروبات' };
@@ -1034,7 +1056,7 @@ function waterCups() { return Math.round((num(S.profile.weight, 65) * 0.035 + 0.
 
 /* ===== الحالة ===== */
 var S = null;
-var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [], botMessages: [{role:'bot',text:'أهلاً! اكتب أكلك والكميات، مثال: 150 جم رز مطبوخ و200 جم فراخ مشوية. هحسب لك السعرات والماكروز.'}], botLast: null, botMeal: 'lunch' };
+var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [], botMessages: [] };
 
 function defaults() {
   var s = {
@@ -1244,151 +1266,104 @@ function vToday() {
 }
 
 /* ===== شاشة الأكل ===== */
+/* ===== بوت السعرات: الواجهة (المحرك في bot/*.js) ===== */
+var BOTX = { bot: null, busy: false, KEY: 'ss-bot-v1' };
+function f1(x) { var v = r1(x); return (v % 1 === 0) ? String(v) : v.toFixed(1); }
+function botDate(off) { return off ? addDays(today(), off) : today(); }
+function botGet() {
+  if (BOTX.bot) return BOTX.bot;
+  if (!window.SSBot) return null;
+  BOTX.bot = SSBot.create({
+    online: true,
+    fetchImpl: function (u, o) { return window.fetch(u, o); },
+    customFoods: function () { return S.customFoods || []; },
+    saveCustomFood: function (c) { S.customFoods.push(c); saveSoon(); },
+    getTargets: function () { return S.targets && S.targets.kcal > 0 ? { kcal: S.targets.kcal, p: S.targets.p, c: S.targets.c, f: S.targets.f } : null; },
+    getDay: function (off) {
+      var d = botDate(off), es = dayEntries(d), t = dayTotals(d);
+      return { totals: t, targets: (S.targets && S.targets.kcal > 0) ? { kcal: S.targets.kcal, p: S.targets.p, c: S.targets.c, f: S.targets.f } : null, entries: es.map(function (e) { return { meal: e.meal, n: e.n, k: e.k }; }) };
+    },
+    logItems: function (items, meal, off) {
+      var d = botDate(off);
+      items.forEach(function (it) { (S.food[d] = S.food[d] || []).push({ id: uid(), meal: meal, fid: null, n: it.name, g: it.g, k: it.k, p: it.p, c: it.c, f: it.f, cost: 0, bot: true }); });
+      saveSoon();
+    }
+  });
+  try {
+    var raw = localStorage.getItem(BOTX.KEY);
+    if (raw) { var o = JSON.parse(raw); UI.botMessages = Array.isArray(o.msgs) ? o.msgs.slice(-30) : []; if (o.state) BOTX.bot.setState(o.state); }
+  } catch (e) { }
+  return BOTX.bot;
+}
+function botSave() {
+  try {
+    var b = botGet(); if (!b) return;
+    localStorage.setItem(BOTX.KEY, JSON.stringify({ msgs: (UI.botMessages || []).slice(-30).map(function (m) { return { role: m.role, text: m.text, plain: m.plain, notes: m.notes, chips: m.chips, kind: m.kind }; }), state: b.getState() }));
+  } catch (e) { }
+}
+function botScroll() { setTimeout(function () { try { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); } catch (e) { scrollTo(0, 1e6); } }, 60); }
+async function botSend(text, typed) {
+  text = String(text || '').trim();
+  if (!text || BOTX.busy) return;
+  var b = botGet(); if (!b) { toast('البوت مش متحمّل، حدّث الصفحة'); return; }
+  var msgs = UI.botMessages || (UI.botMessages = []);
+  msgs.push({ role: 'user', text: text });
+  BOTX.busy = true; UI.tab = 'calcbot'; render(); botScroll();
+  var r;
+  try { r = await b.handle(text); } catch (e) { r = { text: 'حصلت مشكلة صغيرة، جرّب تبعت الرسالة تاني.', plain: 'حصلت مشكلة صغيرة، جرّب تبعت الرسالة تاني.', notes: [], chips: [], kind: 'error' }; }
+  msgs.push({ role: 'bot', text: r.text, plain: r.plain, notes: r.notes || [], chips: r.chips || [], kind: r.kind });
+  BOTX.busy = false; botSave(); render(); botScroll();
+  if (typed) { var i = $('#botInput'); if (i) { try { i.focus({ preventScroll: true }); } catch (e) { } } }
+}
+function botChipsHtml(chips) {
+  if (!chips || !chips.length) return '';
+  return '<div class="chips fw bchips">' + chips.map(function (c) {
+    return c.act === 'log'
+      ? '<button class="chip' + (c.primary ? ' on' : '') + '" data-a="botLog" data-meal="' + esc(c.meal) + '">' + esc(c.label) + '</button>'
+      : '<button class="chip" data-a="botSend" data-t="' + esc(c.send) + '">' + esc(c.label) + '</button>';
+  }).join('') + '</div>';
+}
+function botPanelHtml(b) {
+  var c = b.getCard(); if (!c.rows.length) return '';
+  var h = '<section class="card bpanel"><div class="row between"><h3 style="margin:0">الحساب الحالي</h3><button class="chip" data-a="botClearDraft">امسح الحساب</button></div>';
+  c.rows.forEach(function (r) {
+    h += '<div class="bcrow' + (r.ok ? '' : ' bad') + '"><div class="bcn"><b>' + esc(r.name) + (r.ap && r.ok ? ' <span class="tag">تقريبي</span>' : '') + '</b><span class="muted xs">' + (r.ok ? esc(r.qty) : 'محتاج بيانات، رد على السؤال فوق') + '</span></div>';
+    h += '<span class="kc">' + (r.ok ? r.k : '-') + '</span>';
+    if (r.ok) h += '<label class="bcg"><input inputmode="decimal" data-botg="' + esc(r.id) + '" value="' + r.g + '" aria-label="الوزن بالجرام لـ ' + esc(r.name) + '"><span class="xs muted">جم</span></label>';
+    h += '<button class="bcx" data-a="botDel" data-id="' + esc(r.id) + '" aria-label="شيل ' + esc(r.name) + '">✕</button></div>';
+  });
+  var t = c.total;
+  if (t.n) {
+    h += '<div class="bctot"><div><span class="num big">' + t.k + '</span> <span class="muted">سعرة</span></div><div class="bpills"><span class="bp p">بروتين ' + f1(t.p) + '</span><span class="bp c">كارب ' + f1(t.c) + '</span><span class="bp f">دهون ' + f1(t.f) + '</span></div></div>';
+    var T = S.targets || {};
+    if (T.kcal) { var day = dayTotals(today()), after = day.k + t.k; h += '<p class="muted xs" style="margin:6px 0 0">لو سجلتها النهارده يبقى ' + r0(after) + ' من ' + T.kcal + ' سعرة (فاضل ' + r0(Math.max(0, T.kcal - after)) + ').</p>'; }
+    if (!b.pendingType()) h += '<div class="muted xs" style="margin-top:10px">سجّلها في:</div>' + botChipsHtml(b.mealChips());
+  }
+  return h + '</section>';
+}
 function vCalorieBot() {
-  var msgs=UI.botMessages||[], h='<div class="card"><div class="row between"><div><h2 style="margin:0">🤖 بوت السعرات</h2><p class="muted sm" style="margin:4px 0 0">اكتب أكلك بطريقتك؛ البوت بيدوّر على بياناته أونلاين ويحسبها.</p></div><span class="chip">تقديري</span></div></div>';
-  h+='<div class="card bot-chat" id="botChat">';
-  msgs.slice(-24).forEach(function(m){h+='<div class="bot-msg '+(m.role==='user'?'user':'bot')+'">'+esc(m.text)+'</div>';});
-  h+='</div><div class="card"><label class="f" for="botMeal">سجّل الحساب في وجبة</label><select id="botMeal" class="input" style="width:100%;padding:12px;border-radius:10px;background:var(--surface2);border:1px solid var(--line);color:var(--fg)">';
-  MEALS.forEach(function(m){h+='<option value="'+m[0]+'" '+(UI.botMeal===m[0]?'selected':'')+'>'+esc(m[1])+'</option>';});
-  h+='</select>';
-  if(UI.botLast) h+='<button class="btn block" style="margin-top:10px" data-a="botLog">➕ أضف آخر حساب لوجبة اليوم</button>';
-  h+='</div><form class="bot-entry" id="botForm"><input id="botInput" placeholder="مثلاً: 2 بيضة و100 جم عيش بلدي" autocomplete="off"><button class="btn" type="submit">احسب</button></form><p class="muted xs">البحث أونلاين من Open Food Facts، والقيم تقريبية وقد تختلف حسب المنتج وطريقة التحضير. اتأكد من الوزن والنتيجة قبل تسجيلها.</p>';
+  var b = botGet(), msgs = UI.botMessages || [];
+  var h = '<section class="card"><div class="row between"><div class="grow"><h2 style="margin:0">مساعد التغذية</h2><p class="muted sm" style="margin:4px 0 0">اكتب أكلك بالمصري وهحسبهولك وأسجله في يومك.</p></div>';
+  h += '<span class="chip" style="cursor:default">' + (navigator.onLine === false ? 'من غير نت' : 'أونلاين') + '</span></div></section>';
+  if (!b) return h + '<section class="card"><p>البوت مش متحمّل. حدّث الصفحة وجرّب تاني.</p></section>';
+  var lastBot = -1; msgs.forEach(function (m, i) { if (m.role === 'bot') lastBot = i; });
+  h += '<div class="bchat" id="botChat">';
+  if (!msgs.length) h += '<div class="bmsg bot">أهلًا! قولي أكلت إيه، وأنا أحسب السعرات والماكروز. تقدر تعدّل بعدها: «الرغيف كان 70 جرام»، «زود معلقة زيت»، «شيل البيضة».</div>';
+  msgs.slice(-30).forEach(function (m) {
+    var i = msgs.indexOf(m), body;
+    if (m.role === 'user') { h += '<div class="bmsg user">' + esc(m.text) + '</div>'; return; }
+    if (i === lastBot && b.hasDraft() && (m.kind === 'calc' || m.kind === 'ask-meal')) body = [m.text].concat(m.notes || []).join('\n');
+    else body = m.plain || m.text;
+    h += '<div class="bmsg bot">' + esc(body) + (i === lastBot ? botChipsHtml(m.chips && m.chips.filter(function (c) { return c.act !== 'log'; })) : '') + '</div>';
+  });
+  if (BOTX.busy) h += '<div class="bmsg bot typing" aria-live="polite"><span></span><span></span><span></span></div>';
+  h += '</div>' + botPanelHtml(b);
+  if (!msgs.length) h += '<div class="chips fw" style="margin:6px 0">' + ['احسبلي 2 بيضة ورغيفين عيش بلدي', 'كلت طبق كشري وكوباية عصير مانجا', 'احسبلي 200 جرام فراخ مشوية و150 جرام رز', 'أنا أكلت إيه النهارده؟', 'فاضلي كام سعرة من هدفي؟'].map(function (x) { return '<button class="chip" data-a="botSend" data-t="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>';
+  h += '<form class="bot-entry" id="botForm" autocomplete="off"><input id="botInput" placeholder="مثلًا: 2 بيضة ورغيف ونص عيش بلدي" aria-label="اكتب أكلك" ' + (BOTX.busy ? 'disabled' : '') + ' enterkeyhint="send"><button class="btn" type="submit" ' + (BOTX.busy ? 'disabled' : '') + '>' + (BOTX.busy ? 'بحسب…' : 'احسب') + '</button></form>';
+  h += '<div class="row between" style="margin:2px 0 8px"><span class="muted xs">القيم تقريبية، ومصدرها قاعدة SHADY SPILT وOpen Food Facts عند الحاجة.</span>' + (msgs.length ? '<button class="chip" data-a="botClear">مسح المحادثة</button>' : '') + '</div>';
   return h;
 }
-function botNormalize(s) {
-  return String(s||"").toLowerCase()
-    .replace(/[ًٌٍَُِّْـ]/g,"")
-    .replace(/[أإآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه")
-    .replace(/[٠-٩]/g,function(x){return "٠١٢٣٤٥٦٧٨٩".indexOf(x);})
-    .replace(/[٫،]/g,".").replace(/[^\p{L}\p{N}. ]/gu," ").replace(/\s+/g," ").trim();
-}
-function botParseFoods(input) {
-  var s=botNormalize(input);
-  s=s.replace(/^(?:ممكن\s+)?(?:تحسب(?:لي|لنا)?|احسب(?:لي|لنا)?|عايز(?:ك)?\s+تحسبلي|السعرات\s+بتاعت|السعرات\s+في)\s*/,"")
-     .replace(/^(?:انا\s+)?(?:كلت|اكلت|أكلت|هاكل|هأكل|تناولت)\s*/,"")
-     .replace(/\b(?:سعرات|كالوري|calories|kcal)\b/g," ")
-     .trim();
-  var numberWords={"واحد":1,"واحدة":1,"وحده":1,"اتنين":2,"اثنين":2,"تنين":2,"ثلاثه":3,"ثلاث":3,"اربعه":4,"أربعة":4,"خمسه":5,"ستة":6,"سبعه":7,"ثمانيه":8,"تسعه":9,"عشره":10};
-  s=s.replace(/\b(واحده|واحدة|واحد|اتنين|اثنين|تنين|ثلاثه|ثلاث|اربعه|أربعة|خمسه|ستة|سبعه|ثمانيه|تسعه|عشره)\b/g,function(w){return numberWords[w]||w;});
-  var parts=s.split(/\s+(?:و|مع)\s+|[,؛;+]/).filter(Boolean), out=[];
-  var aliases=[
-    ["بيض كامل","بيضة كاملة"],["بيضه","بيضة كاملة"],["بيضتين","بيضة كاملة"],["بيضات","بيضة كاملة"],["بيضة","بيضة كاملة"],["بيض","بيضة كاملة"],
-    ["رغيف عيش بلدي","عيش بلدي"],["رغيف بلدي","عيش بلدي"],["عيش بلدي","عيش بلدي"],["عيش","عيش بلدي"],
-    ["صدور فراخ","صدور فراخ مشوية"],["فراخ مشوية","صدور فراخ مشوية"],["فراخ","صدور فراخ مشوية"],["دجاج","صدور فراخ مشوية"],
-    ["رز ابيض","رز أبيض مطبوخ"],["ارز","رز أبيض مطبوخ"],["رز","رز أبيض مطبوخ"],
-    ["مكرونه","مكرونة مسلوقة"],["مكرونة","مكرونة مسلوقة"],
-    ["بطاطس","بطاطس مسلوقة"],["بطاطه","بطاطا مشوية"],
-    ["لبن","لبن كامل الدسم"],["حليب","لبن كامل الدسم"],["زبادي","زبادي طبيعي"],
-    ["جبنه قريش","جبنة قريش"],["جبنة قريش","جبنة قريش"],["عيش فينو","عيش فينو"],["توست","عيش توست"],
-    ["موز","موز"],["تفاح","تفاح"],["تونه","تونة بالماء"],["تونة","تونة بالماء"],
-    ["شوفان","شوفان"],["فول","فول مدمس"],["عدس","عدس مسلوق"],["طعمية","طعمية"],["زيت","زيت"]
-  ];
-  parts.forEach(function(part){
-    part=part.trim(); if(!part) return;
-    var m=part.match(/^(\d+(?:\.\d+)?)\s*(كجم|كيلو|جم|جرام|غرام|غ|مل|ملي|لتر|g|kg|ml)?\s*(.*?)$/i);
-    var amount=m?Number(m[1]):1, unit=m?(m[2]||""):"", name=m?m[3].trim():part;
-    if(!name) return;
-    var norm=botNormalize(name), canonical="", alias="";
-    for(var j=0;j<aliases.length;j++){
-      var ak=botNormalize(aliases[j][0]);
-      if(norm.indexOf(ak)>=0){alias=aliases[j][0];canonical=aliases[j][1];break;}
-    }
-    if(!canonical){
-      var foods=allFoods();
-      for(var k=0;k<foods.length;k++){
-        var fn=botNormalize(foods[k].n);
-        if(norm===fn||norm.indexOf(fn)>=0||fn.indexOf(norm)>=0){canonical=foods[k].n;break;}
-      }
-    }
-    var food=canonical?allFoods().filter(function(f){return f.n===canonical;})[0]:null;
-    var isWeight=/كجم|كيلو|kg/i.test(unit), isGram=/جم|جرام|غرام|^غ$|^g$/i.test(unit);
-    var grams=isWeight?amount*1000:isGram?amount:null;
-    if(/مل|ملي|ml/i.test(unit)) grams=amount;
-    if(grams===null){
-      var piece=food&&food.g?food.g:100;
-      if(/بيضة كاملة/.test(canonical)) piece=50;
-      if(/عيش بلدي/.test(canonical)) piece=90;
-      if(/عيش فينو/.test(canonical)) piece=70;
-      if(/عيش توست/.test(canonical)) piece=28;
-      if(/موز/.test(canonical)) piece=120;
-      if(/تفاح/.test(canonical)) piece=180;
-      if(/رغيف|بيضة|بيضتين|بيضات|حبة|قطعة|كوباية|كوب|ملعقة|معلقة|طبق|سكوب|علبة/.test(name)) grams=amount*piece;
-      else grams=amount*piece;
-    } else if(m && !unit) grams=amount*(food&&food.g?food.g:100);
-    out.push({query:canonical||name,grams:grams,quantity:amount,unit:unit,assumed:!m||!unit,localFood:food?food.n:null,unresolved:!food});
-  });
-  return out;
-}
-function botLocalLookup(query) {
-  var foods=allFoods(), q=botNormalize(query), best=null, score=0;
-  foods.forEach(function(x){
-    var n=botNormalize(x.n), v=0;
-    if(n===q) v=100;
-    else if(q.indexOf(n)>=0||n.indexOf(q)>=0) v=70;
-    else {
-      var words=q.split(" ").filter(function(w){return w.length>1;});
-      words.forEach(function(w){if(n.indexOf(w)>=0)v+=12;});
-    }
-    if(v>score){score=v;best=x;}
-  });
-  return best&&score>=35?{n:best.n,k:best.k,p:best.p,c:best.c,f:best.f,source:"قاعدة الأكل المصرية داخل التطبيق"}:null;
-}
-async function botSearchFood(item) {
-  /* الأكلات المصرية المعروفة تتحسب من قاعدة التطبيق أولاً؛ البحث التجاري لا يختار منتجاً غير مطابق بالاسم. */
-  var local=item.localFood?botLocalLookup(item.localFood):botLocalLookup(item.query);
-  if(local) return local;
-  var url="https://world.openfoodfacts.org/cgi/search.pl?search_terms="+encodeURIComponent(item.query)+"&search_simple=1&action=process&json=1&page_size=20&fields=product_name,nutriments";
-  try {
-    var response=await fetch(url,{headers:{"Accept":"application/json"}});
-    if(!response.ok) throw new Error("search unavailable");
-    var data=await response.json(), products=data.products||[], q=botNormalize(item.query);
-    var words=q.split(" ").filter(function(w){return w.length>2;});
-    var valid=products.map(function(p){
-      var n=p.nutriments||{}, kcal=Number(n["energy-kcal_100g"]);
-      if(!kcal&&Number(n.energy_100g)) kcal=Number(n.energy_100g)/4.184;
-      var title=botNormalize(p.product_name||""), relevance=0;
-      words.forEach(function(w){if(title.indexOf(w)>=0) relevance+=1;});
-      return {n:p.product_name||item.query,k:kcal,p:Number(n.proteins_100g)||0,c:Number(n.carbohydrates_100g)||0,f:Number(n.fat_100g)||0,relevance:relevance};
-    }).filter(function(p){return p.k>0&&p.k<1000&&p.relevance>0;}).sort(function(a,b){return b.relevance-a.relevance;});
-    if(valid.length){delete valid[0].relevance;return Object.assign(valid[0],{source:"Open Food Facts"});}
-  } catch(e) {}
-  return null;
-}
-async function botCalculate(text) {
-  var parsed=botParseFoods(text), found=[], missing=[], total={g:0,k:0,p:0,c:0,f:0};
-  for(var i=0;i<parsed.length;i++){
-    var item=parsed[i], food=await botSearchFood(item);
-    if(!food){missing.push(item.query);continue;}
-    var scale=item.grams/100;
-    found.push({n:food.n,g:item.grams,k:food.k*scale,p:food.p*scale,c:food.c*scale,f:food.f*scale,source:food.source,assumed:item.assumed});
-  }
-  found.forEach(function(x){total.g+=x.g;total.k+=x.k;total.p+=x.p;total.c+=x.c;total.f+=x.f;});
-  return {items:found,missing:missing,total:total};
-}
-async function botReply(text) {
-  var msgs=UI.botMessages||(UI.botMessages=[]);
-  msgs.push({role:"user",text:text},{role:"bot",text:"براجع كل صنف والكمية اللي قلتها…"});
-  UI.tab="calcbot";render();scrollTop();
-  var result=await botCalculate(text);
-  msgs.pop();
-  if(!result||!result.items.length){
-    msgs.push({role:"bot",text:"مش قادر أحدد الأكل المكتوب بدقة. جرّب تقول الكمية واسم الأكل بشكل أوضح، زي: «احسبلي 2 بيضة و2 رغيف عيش بلدي»."});
-    UI.botLast=null;
-  } else {
-    UI.botLast={name:text,items:result.items,total:result.total};
-    var t=result.total,sources={};
-    result.items.forEach(function(x){sources[x.source]=true;});
-    var lines=result.items.map(function(x){return "• "+x.n+" — "+Math.round(x.g)+" جم: "+Math.round(x.k)+" سعرة";});
-    var estimated=result.items.filter(function(x){return x.assumed;}).map(function(x){
-      var each=x.quantity?Math.round(x.g/x.quantity):Math.round(x.g);
-      return "• "+x.n+": اعتبرت الكمية "+(x.quantity>1?x.quantity+" وحدات":"حصة واحدة")+"، بمتوسط "+each+" جم للوحدة.";
-    });
-    var assumptions=estimated.length?"\n\n**تقدير الوزن (مش وزن مؤكد):**\n"+estimated.join("\n")+"\nلو عندك الميزان، ابعت الوزن بالجرام عشان النتيجة تبقى أدق.":"";
-    var missing=result.missing.length?"\n\nماقدرتش أتعرف على: "+result.missing.join("، ")+"؛ الأصناف دي مش داخلة في الإجمالي.":"";
-    msgs.push({role:"bot",text:"تمام، فهمت إنك أكلت:\n\n"+lines.join("\n")+"\n\n**الإجمالي التقريبي: "+Math.round(t.k)+" سعرة**\nالبروتين: "+t.p.toFixed(1)+" جم\nالكارب: "+t.c.toFixed(1)+" جم\nالدهون: "+t.f.toFixed(1)+" جم"+assumptions+missing+"\n\nالقيم الغذائية لكل صنف تقديرية من "+Object.keys(sources).join(" و ")+"."});
-  }
-  render();scrollTop();
-}
+
 function vFood() {
   var d = UI.date, es = dayEntries(d), t = dayTotals(d), T = S.targets;
   var h = '<div class="row between" style="margin-top:12px"><button class="icon-btn" data-a="dateGo" data-n="-1" aria-label="اليوم السابق"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>';
@@ -1918,7 +1893,7 @@ function scrollTop() { try { window.scrollTo(0, 0); } catch (e) { } }
 
 /* ===== الإجراءات ===== */
 var ACT = {
-  tab: function (t) { UI.tab = t.dataset.t; UI.sheet = null; UI.arm = ''; render(); scrollTop(); },
+  tab: function (t) { UI.tab = t.dataset.t; UI.sheet = null; UI.arm = ''; render(); if (UI.tab === 'calcbot') botScroll(); else scrollTop(); },
   goFood: function () { UI.tab = 'food'; UI.date = today(); render(); scrollTop(); },
   gotoSplit: function () { UI.tab = 'work'; UI.wtab = 'split'; render(); scrollTop(); },
   closeSheet: function () { UI.sheet = null; render(); },
@@ -1945,7 +1920,17 @@ var ACT = {
   recipeAdd: function (t) { var f = foodById(t.dataset.id), g = num($('#recipeG').value,100); if (!f || g <= 0) { toast('اكتب كمية صحيحة بالجرام'); return; } var m=g/100; UI.recipeItems.push({id:f.id,n:f.n,g:g,k:f.k*m,p:f.p*m,c:f.c*m,f:f.f*m}); UI.recipeQ=''; render(); },
   recipeRemove: function (t) { UI.recipeItems.splice(+t.dataset.i,1); render(); },
   recipeSave: function () { var name=$('#recipeName').value.trim(), items=UI.recipeItems||[]; if(!name){toast('اكتب اسم الأكلة');return;} if(!items.length){toast('ضيف مكون واحد على الأقل');return;} var sum={g:0,k:0,p:0,c:0,f:0}; items.forEach(function(x){sum.g+=x.g;sum.k+=x.k;sum.p+=x.p;sum.c+=x.c;sum.f+=x.f;}); (S.food[UI.date]=S.food[UI.date]||[]).push({id:uid(),meal:UI.sheet.meal,fid:null,n:name+' (مكونات)',g:sum.g,k:sum.k,p:sum.p,c:sum.c,f:sum.f,cost:0,recipe:items}); saveSoon(); UI.sheet=null; toast('اتحسبت الأكلة واتضافت للوجبة'); render(); },
-  botLog: function(){var r=UI.botLast;if(!r)return;var t=r.total,d=today(),name=r.name+' (حساب البوت)';(S.food[d]=S.food[d]||[]).push({id:uid(),meal:UI.botMeal||'lunch',fid:null,n:name,g:t.g,k:t.k,p:t.p,c:t.c,f:t.f,cost:0,bot:true});saveSoon();toast('اتضاف حساب البوت لوجبة اليوم');UI.tab='food';UI.date=d;render();},
+  botSend: function (t) { botSend(t.dataset.t); },
+  botLog: function (t) {
+    var b = botGet(); if (!b) return;
+    var r = b.logDraft(t.dataset.meal), msgs = UI.botMessages || (UI.botMessages = []);
+    msgs.push({ role: 'bot', text: r.text, plain: r.plain, notes: [], chips: [], kind: r.kind });
+    if (r.kind === 'logged') toast('اتسجلت في ' + (MEALS.filter(function (m) { return m[0] === t.dataset.meal; })[0] || ['', ''])[1]);
+    botSave(); render(); botScroll();
+  },
+  botDel: function (t) { var b = botGet(); if (b) { b.removeItem(t.dataset.id); botSave(); render(); } },
+  botClearDraft: function () { var b = botGet(); if (!b) return; if (!arm('botclr')) { toast('اضغط تاني للتأكيد'); return; } b.clear(); botSave(); render(); },
+  botClear: function () { if (!arm('botchat')) { toast('اضغط تاني لمسح المحادثة'); return; } var b = botGet(); if (b) b.clear(); UI.botMessages = []; botSave(); render(); },
   foodCat: function (t) { UI.fc = t.dataset.v; render(); },
   selFood: function (t) { var f = foodById(t.dataset.id); if (!f) return; UI.sheet = { type: 'food', mode: 'detail', meal: UI.sheet.meal, fid: f.id, g: f.g, cost: '' }; render(); },
   servMult: function (t) {
@@ -2092,7 +2077,9 @@ var ACT = {
   }
 };
 
-document.addEventListener('submit',function(e){if(e.target&&e.target.id==='botForm'){e.preventDefault();var inp=$('#botInput'),v=inp?inp.value.trim():'';if(v){botReply(v);}}});
+document.addEventListener('submit', function (e) {
+  if (e.target && e.target.id === 'botForm') { e.preventDefault(); var inp = $('#botInput'), v = inp ? inp.value.trim() : ''; if (v) botSend(v, true); }
+});
 document.addEventListener('click', function (e) {
   var t = e.target.closest ? e.target.closest('[data-a]') : null;
   if (!t) return;
@@ -2105,7 +2092,7 @@ document.addEventListener('input', function (e) {
   if (ds.pd) { S.plan.days[+ds.di].n = t.value; planTouch(); return; }
   if (ds.pk) { var ex = S.plan.days[+ds.di].ex[+ds.ei]; if (ds.pk === 'sets') ex.sets = Math.max(1, parseInt(t.value) || 1); else ex.reps = t.value; planTouch(); return; }
   if (id === 'fq') { UI.fq = t.value; var l = $('#foodList'); if (l) l.innerHTML = foodListHtml(); return; }
-  if (id === 'botMeal') { UI.botMeal=t.value; return; }
+  if (ds.botg != null) { var bb = botGet(); if (bb && bb.setGrams(ds.botg, num(t.value))) { botSave(); render(); } else { toast('اكتب الوزن بالجرام'); render(); } return; }
   if (id === 'recipeQ') { UI.recipeQ=t.value; var rm=$('#recipeMatches'); if(rm) rm.innerHTML=recipeMatchesHtml(allFoods().filter(function(f){return !UI.recipeQ.trim()||f.n.toLowerCase().indexOf(UI.recipeQ.trim().toLowerCase())>=0;}).slice(0,18)); return; }
   if (id === 'fg') { var sh = UI.sheet; if (sh && sh.type === 'food') { sh.g = num(t.value); var f = foodById(sh.fid), m = $('#fmacros'); if (f && m) m.innerHTML = foodMacrosHtml(f, sh.g); } return; }
   if (id === 'lq') { UI.lq = t.value; var l2 = $('#libList'); if (l2) l2.innerHTML = exListHtml(false); return; }

@@ -1,9 +1,13 @@
 /* SHADY SPILT service worker: بيخلي التطبيق يشتغل بدون نت */
-var VERSION = 'shady-spilt-v1';
+var VERSION = 'shady-spilt-v2';
 var CORE = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './bot/foods-eg.js',
+  './bot/engine.js',
+  './bot/bot.js',
+  './bot/brain.js',
   './Icons/icon-192.png',
   './Icons/icon-512.png',
   './Icons/maskable-192.png',
