@@ -1674,14 +1674,14 @@ function getExerciseGif(id) {
 }
 function loadExerciseGifs() {
   if (EX_GIF_CATALOG || EX_GIF_LOADING) return EX_GIF_LOADING;
-  EX_GIF_LOADING = fetch('https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@main/api/en/exercises.json')
+  EX_GIF_LOADING = fetch('https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/api/en/exercises.json')
     .then(function(r){ if(!r.ok) throw new Error('GIF library unavailable'); return r.json(); })
     .then(function(data) {
       var arr = Array.isArray(data) ? data : (data.exercises || data.data || []);
       EX_GIF_CATALOG = {};
       arr.forEach(function(item) {
-        var name = normExName(item.title || item.name || item.exercise);
-        var url = item.gif_url || item.gifUrl || item.video || '';
+        var name = normExName(item.name || item.title || item.exercise);
+        var url = item.gifUrl || item.gif_url || item.video || '';
         if (name && /^https?:\\/\\//i.test(url)) EX_GIF_CATALOG[name] = url;
       });
       return EX_GIF_CATALOG;
