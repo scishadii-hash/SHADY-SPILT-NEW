@@ -143,6 +143,7 @@ ul.ls li{margin-bottom:3px}
 .srow.done input{opacity:.65}
 .pr{color:var(--accent);font-weight:700;font-size:12px}
 .body{width:100%;max-width:420px;height:auto;display:block;margin-inline:auto;touch-action:manipulation}
+.body.female{transform:scaleX(.92);transform-origin:50% 50%}
 .bb{fill:var(--a-sk);stroke:var(--a-skl);stroke-width:.8}
 .ms{fill:var(--a-ms);stroke:var(--a-mst);stroke-width:.7;stroke-linejoin:round}
 .mu{cursor:pointer}.mu.un{cursor:default}
@@ -969,11 +970,11 @@ function anaZoom(list, id) {
   else if (ar > 1.7) { var nh = w / 1.7; miny -= (nh - h) / 2; h = nh; }
   return [fx(x0), fx(miny), fx(w), fx(h)];
 }
-function anatomySvg(view, active, zoom) {
+function anatomySvg(view, active, zoom, sex) {
   var list = view === 'front' ? ANA_FRONT : ANA_BACK, heads = MUSCLE_HEADS[active] || [];
   var vb = (zoom && anaZoom(list, active)) || [0, 0, 300, 560];
   var deepOn = !!MUSCLE_DEEP[active], defs = '', body = '', ci = 0;
-  var h = '<svg viewBox="' + vb.join(' ') + '" class="body" role="img" aria-label="' + (view === 'front' ? 'رسم تشريحي للجسم من الأمام' : 'رسم تشريحي للجسم من الخلف') + '">';
+  var h = '<svg viewBox="' + vb.join(' ') + '" class="body ' + (sex === 'female' ? 'female' : 'male') + '" role="img" aria-label="' + (sex === 'female' ? 'جسم أنثى تشريحي ' : 'جسم ذكر تشريحي ') + (view === 'front' ? 'من الأمام' : 'من الخلف') + '">';
   defs += '<radialGradient id="shd" cx="0.5" cy="0.4" r="0.75"><stop offset="0" stop-color="#fff" stop-opacity="0.26"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.3"/></radialGradient>';
   body += '<ellipse cx="150" cy="42" rx="21" ry="30" class="bb"/><path d="' + silPathFull() + '" class="bb"/><path d="' + armPath(1) + '" class="bb"/><path d="' + armPath(-1) + '" class="bb"/>';
   list.forEach(function (s) {
@@ -1056,7 +1057,7 @@ function waterCups() { return Math.round((num(S.profile.weight, 65) * 0.035 + 0.
 
 /* ===== الحالة ===== */
 var S = null;
-var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [], botMessages: [] };
+var UI = { tab: 'today', wtab: 'today', ptab: 'weight', date: today(), sheet: null, mus: 'chest', mview: 'front', mzoom: true, anaSex: 'male', techM: 'all', techQ: '', sd: 6, sl: 'متوسط', lm: 'all', le: 'all', lq: '', fq: '', fc: 'all', pe: '', arm: '', rest: null, recipeItems: [], botMessages: [] };
 
 function defaults() {
   var s = {
@@ -1203,6 +1204,7 @@ var NAV = [
   ['work', 'التمرين', '<path d="M6.5 6.5v11"/><path d="M17.5 6.5v11"/><path d="M3.5 9v6"/><path d="M20.5 9v6"/><path d="M6.5 12h11"/>'],
   ['prog', 'التقدم', '<path d="M3 20h18"/><path d="M5 16l5-5 4 3 6-8"/>'],
   ['muscle', 'العضلات', '<circle cx="12" cy="5" r="2.5"/><path d="M7 21v-8l-2-4 3-2h8l3 2-2 4v8"/><path d="M12 11v10"/>']
+  ['tech', 'شرح التمارين', '<path d="M6 4h12v16H6z"/><path d="M9 8h6M9 12h6M9 16h4"'],
 ];
 function renderNav() {
   var h = '<div class="in">';
@@ -1753,14 +1755,25 @@ function vVol() {
   return h;
 }
 
+/* ===== مكتبة شرح التمارين ===== */
+function techListHtml() {
+  var q = (UI.techQ || '').trim().toLowerCase(), m = UI.techM;
+  var list = EX_LIST.filter(function (x) { return (m === 'all' || x.m === m || x.sec.indexOf(m) >= 0) && (!q || x.n.toLowerCase().indexOf(q) >= 0 || x.en.toLowerCase().indexOf(q) >= 0 || MUSCLE_NAMES[x.m].toLowerCase().indexOf(q) >= 0); }).slice(0, 35);
+  if (!list.length) return '<p class="muted">مش لاقي تمرين مطابق. جرّب اسم عربي أو English.</p>';
+  return list.map(function (x) { return '<button class="list-row" data-a="exInfo" data-id="' + x.id + '"><div class="grow"><b>' + esc(x.n) + '</b><div class="muted xs" style="direction:ltr;text-align:right">' + esc(x.en) + '</div><div class="muted sm" style="margin-top:4px"><b>العضلة:</b> ' + esc(MUSCLE_NAMES[x.m]) + ' · <b>الأداة:</b> ' + esc(EQUIP[x.eq]) + '</div><div class="note sm" style="margin-top:6px">' + esc(x.cue) + '</div></div><span class="tag">شرح</span></button>'; }).join('');
+}
+function vTechnique() {
+  var ms = [['all','كل التمارين']].concat(MUSCLE_ORDER.map(function (m) { return [m, MUSCLE_NAMES[m]]; }));
+  return '<h2 style="margin-top:14px">شرح تكنيك التمارين</h2><p class="muted sm">اختار تمرين عشان تشوف أهم نقطة في الأداء والعضلة المستهدفة. افتح التمرين لشرح إضافي.</p><div class="field"><input id="techQ" placeholder="ابحث باسم التمرين أو العضلة" value="' + esc(UI.techQ) + '" aria-label="بحث التمارين"></div>' + chipRow(ms, UI.techM, 'techM') + '<div id="techList">' + techListHtml() + '</div>';
+}
 /* ===== العضلات ===== */
 function listHtml(arr) { return '<ul class="ls">' + arr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'; }
 function vMuscle() {
   var id = UI.mus, M = MUSCLES[id], list = UI.mview === 'front' ? ANA_FRONT : ANA_BACK;
   var visible = list.some(function (s) { return s.m === id; }), heads = MUSCLE_HEADS[id] || [];
-  var h = '<div class="card" style="margin-top:12px"><div class="row between"><b>اضغط على العضلة في الرسم</b></div>' + chipRow([['front', 'من الأمام'], ['back', 'من الخلف']], UI.mview, 'mview');
+  var h = '<div class="card" style="margin-top:12px"><div class="row between"><b>اختار هيئة الجسم والاتجاه</b></div>' + chipRow([['male', 'Male · ذكر'], ['female', 'Female · أنثى']], UI.anaSex, 'anaSex') + chipRow([['front', 'من الأمام'], ['back', 'من الخلف']], UI.mview, 'mview');
   h += '<div class="row rw" style="margin:2px 0 8px"><button class="btn ghost sm" data-a="mzoom">' + (UI.mzoom ? 'عرض الجسم كله' : 'تكبير على العضلة') + '</button></div>';
-  h += anatomySvg(UI.mview, id, UI.mzoom && visible);
+  h += anatomySvg(UI.mview, id, UI.mzoom && visible, UI.anaSex);
   if (!visible) h += '<p class="muted sm" style="text-align:center;margin-top:6px">العضلة دي بتبان أحسن من الجهة التانية، اضغط على "' + (UI.mview === 'front' ? 'من الخلف' : 'من الأمام') + '".</p>';
   if (visible && heads.length) h += '<div class="legend">' + heads.map(function (x, i) { return '<span><i class="sw h' + i + '"></i>' + esc(x[1]) + '</span>'; }).join('') + '</div>';
   if (visible && FIBER_TXT[id]) h += '<p class="sm" style="margin-top:8px"><b>اتجاه الألياف:</b> ' + esc(FIBER_TXT[id]) + '</p>';
@@ -1817,6 +1830,7 @@ function render() {
     else if (t === 'work') h = vWork();
     else if (t === 'prog') h = vProg();
     else if (t === 'muscle') h = vMuscle();
+    else if (t === 'tech') h = vTechnique();
     else h = vSettings();
   } catch (e) { h = '<p class="muted">حصل خطأ في العرض: ' + esc(e.message) + '</p>'; }
   m.innerHTML = h;
@@ -2057,6 +2071,8 @@ var ACT = {
   muscleChip: function (t) { UI.mus = t.dataset.v; UI.mview = MUSCLES[UI.mus].view; render(); },
   mzoom: function () { UI.mzoom = !UI.mzoom; render(); },
   mview: function (t) { UI.mview = t.dataset.v; render(); },
+  anaSex: function (t) { UI.anaSex = t.dataset.v === 'female' ? 'female' : 'male'; UI.mzoom = false; render(); },
+  techM: function (t) { UI.techM = t.dataset.v; render(); },
   gotoMuscle: function (t) { UI.mus = t.dataset.m; UI.mview = MUSCLES[UI.mus].view; UI.tab = 'muscle'; UI.sheet = null; render(); scrollTop(); },
 
   /* إعدادات */
@@ -2091,6 +2107,7 @@ document.addEventListener('input', function (e) {
   if (ds.k && ds.x != null && S.draft) { var s = S.draft.ex[+ds.x].sets[+ds.s]; if (s) { s[ds.k] = t.value; saveSoon(); } return; }
   if (ds.pd) { S.plan.days[+ds.di].n = t.value; planTouch(); return; }
   if (ds.pk) { var ex = S.plan.days[+ds.di].ex[+ds.ei]; if (ds.pk === 'sets') ex.sets = Math.max(1, parseInt(t.value) || 1); else ex.reps = t.value; planTouch(); return; }
+  if (id === 'techQ') { UI.techQ = t.value; var tl = $('#techList'); if (tl) tl.innerHTML = techListHtml(); return; }
   if (id === 'fq') { UI.fq = t.value; var l = $('#foodList'); if (l) l.innerHTML = foodListHtml(); return; }
   if (ds.botg != null) { var bb = botGet(); if (bb && bb.setGrams(ds.botg, num(t.value))) { botSave(); render(); } else { toast('اكتب الوزن بالجرام'); render(); } return; }
   if (id === 'recipeQ') { UI.recipeQ=t.value; var rm=$('#recipeMatches'); if(rm) rm.innerHTML=recipeMatchesHtml(allFoods().filter(function(f){return !UI.recipeQ.trim()||f.n.toLowerCase().indexOf(UI.recipeQ.trim().toLowerCase())>=0;}).slice(0,18)); return; }
